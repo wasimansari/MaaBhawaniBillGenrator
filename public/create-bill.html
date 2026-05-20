@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Invoice — BillGen</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav-bar">
+      <h2>Create tax invoice</h2>
+      <a class="btn btn-secondary" href="dashboard.html">← Back</a>
+    </nav>
+
+    <div class="card card-wide">
+      <form id="billForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="customerName">Customer name</label>
+            <input id="customerName" name="customerName" type="text" required placeholder="e.g. NPS HAKIM MIYA TOLA">
+          </div>
+          <div class="form-group">
+            <label for="customerMobile">Customer mobile (optional)</label>
+            <input id="customerMobile" name="customerMobile" type="tel" maxlength="10">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="billDate">Invoice Date</label>
+            <input id="billDate" name="billDate" type="date">
+          </div>
+          <div class="form-group">
+            <label for="customerAddress">Customer address (optional)</label>
+            <input id="customerAddress" name="customerAddress" type="text" placeholder="Customer address">
+          </div>
+        </div>
+
+        <div class="form-row" style="align-items: end; margin: 1rem 0;">
+          <div class="form-group">
+            <label for="catalogPick">Quick add from catalog</label>
+            <select id="catalogPick"></select>
+          </div>
+          <button type="button" class="btn btn-secondary" id="addItemRow">+ Add item row</button>
+        </div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Qty</th>
+              <th>Rate (₹)</th>
+              <th>Per</th>
+              <th>Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody">
+            <tr class="item-row">
+              <td><input type="text" class="item-desc" placeholder="Description" required></td>
+              <td><input type="number" class="item-qty" min="0.01" step="0.01" value="1" required></td>
+              <td><input type="number" class="item-rate" min="0" step="0.01" value="0" required></td>
+              <td><input type="text" class="item-per" value="pcs" style="width:60px"></td>
+              <td class="item-amount">₹ 0.00</td>
+              <td><button type="button" class="btn-icon remove-item" title="Remove">×</button></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="form-row" style="margin-top: 1rem;">
+          <div class="form-group">
+            <label for="cgstPercent">CGST (%)</label>
+            <input id="cgstPercent" name="cgstPercent" type="number" min="0" step="0.01" value="9">
+          </div>
+          <div class="form-group">
+            <label for="sgstPercent">SGST (%)</label>
+            <input id="sgstPercent" name="sgstPercent" type="number" min="0" step="0.01" value="9">
+          </div>
+        </div>
+
+        <div class="totals-box">
+          <p><span>Total Amount</span><span id="subtotalDisplay">₹ 0.00</span></p>
+          <p><span>CGST</span><span id="cgstDisplay">₹ 0.00</span></p>
+          <p><span>SGST</span><span id="sgstDisplay">₹ 0.00</span></p>
+          <p class="total-line"><span>Grand Total</span><span id="grandTotalDisplay">₹ 0.00</span></p>
+          <p class="muted" style="margin-top:0.5rem;font-size:0.8rem;" id="amountWordsPreview"></p>
+        </div>
+
+        <div id="message" class="message" hidden></div>
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top: 1rem; width: auto;">Save invoice</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/validators.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/bills.js"></script>
+  <script>
+    const form = document.getElementById("billForm");
+    const messageEl = document.getElementById("message");
+    const submitBtn = document.getElementById("submitBtn");
+    let formHelpers = null;
+
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById("billDate").value = today;
+
+    // Check if editing existing bill
+    const params = new URLSearchParams(window.location.search);
+    const isEdit = params.get("edit") === "true";
+    
+    if (isEdit) {
+      const editBillData = sessionStorage.getItem("editBillData");
+      if (editBillData) {
+        const bill = JSON.parse(editBillData);
+        document.getElementById("customerName").value = bill.customerName || "";
+        document.getElementById("customerAddress").value = bill.customerAddress || "";
+        document.getElementById("customerMobile").value = bill.customerMobile || "";
+        document.getElementById("cgstPercent").value = bill.cgstPercent || 9;
+        document.getElementById("sgstPercent").value = bill.sgstPercent || 9;
+        
+        // Set bill date if available
+        if (bill.billDate) {
+          const billDate = bill.billDate.toDate ? bill.billDate.toDate() : new Date(bill.billDate);
+          document.getElementById("billDate").value = billDate.toISOString().split('T')[0];
+        }
+        
+        submitBtn.textContent = "Update invoice";
+        document.querySelector("h2").textContent = "Update tax invoice";
+      }
+    }
+
+    requireAuth().then(() => {
+      formHelpers = bindBillForm();
+      loadCatalogQuickAdd(document.getElementById("catalogPick"), formHelpers);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        saveBill(form, formHelpers, messageEl, submitBtn);
+      });
+    });
+  </script>
+</body>
+</html>

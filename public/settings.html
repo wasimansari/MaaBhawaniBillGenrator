@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Settings — BillGen</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav-bar">
+      <h2>Business settings</h2>
+      <a class="btn btn-secondary" href="dashboard.html">← Dashboard</a>
+    </nav>
+
+    <div class="card card-wide">
+      <p class="subtitle">These details appear on every quotation. Add your logo at <code>public/images/logo.png</code>.</p>
+      <form id="settingsForm">
+        <h3>Company details</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="businessName">Business name</label>
+            <input id="businessName" name="businessName" type="text" required>
+          </div>
+          <div class="form-group">
+            <label for="tagline">Tagline</label>
+            <input id="tagline" name="tagline" type="text">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="businessAddress">Address</label>
+          <textarea id="businessAddress" name="businessAddress" required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="businessMobile">Mobile</label>
+            <input id="businessMobile" name="businessMobile" type="tel" maxlength="10">
+          </div>
+          <div class="form-group">
+            <label for="businessEmail">Email</label>
+            <input id="businessEmail" name="businessEmail" type="email">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gstin">GSTIN</label>
+            <input id="gstin" name="gstin" type="text">
+          </div>
+          <div class="form-group">
+            <label for="stateCode">State code</label>
+            <input id="stateCode" name="stateCode" type="text" placeholder="10">
+          </div>
+          <div class="form-group">
+            <label for="stateName">State name</label>
+            <input id="stateName" name="stateName" type="text" placeholder="Bihar">
+          </div>
+        </div>
+
+        <h3 style="margin-top: 1.5rem;">Bank details</h3>
+        <div class="form-group">
+          <label for="bankName">Bank name</label>
+          <input id="bankName" name="bankName" type="text">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="accountNo">Account number</label>
+            <input id="accountNo" name="accountNo" type="text">
+          </div>
+          <div class="form-group">
+            <label for="ifsc">IFSC code</label>
+            <input id="ifsc" name="ifsc" type="text">
+          </div>
+        </div>
+
+        <h3 style="margin-top: 1.5rem;">Additional item price list</h3>
+        <p class="muted" style="margin-bottom: 0.75rem;">Saved items appear at the bottom of every quotation and can be quick-added when creating bills.</p>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Rate (₹)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="catalogBody"></tbody>
+        </table>
+        <button type="button" class="btn btn-secondary" id="addCatalogRow">+ Add catalog item</button>
+
+        <div id="message" class="message" hidden style="margin-top: 1rem;"></div>
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top: 1.5rem; width: auto;">Save settings</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/validators.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/settings.js"></script>
+  <script>
+    const form = document.getElementById("settingsForm");
+    const messageEl = document.getElementById("message");
+    const submitBtn = document.getElementById("submitBtn");
+
+    document.getElementById("addCatalogRow").addEventListener("click", () => {
+      document.getElementById("catalogBody").appendChild(createCatalogRow());
+    });
+
+    requireAuth().then((user) => loadSettingsForm(user.uid));
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveSettings(form, messageEl, submitBtn);
+    });
+  </script>
+</body>
+</html>

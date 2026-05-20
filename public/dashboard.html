@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — BillGen</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav class="nav-bar no-print">
+      <div class="brand">
+        <div class="brand-icon">BG</div>
+        <div>
+          <h1>BillGen</h1>
+          <p class="user-greeting" id="userGreeting">Loading...</p>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="settings.html">Settings</a>
+        <a class="btn btn-primary" href="create-bill.html">+ New Invoice</a>
+        <button class="btn btn-ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </nav>
+
+    <h2>Your bills</h2>
+    <div id="billsList" class="bills-grid"></div>
+    <div id="emptyState" class="empty-state" hidden>
+      <p>No bills yet. Create your first bill to get started.</p>
+      <a class="btn btn-primary" href="create-bill.html" style="margin-top: 1rem; display: inline-flex;">Create Bill</a>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/bills.js"></script>
+  <script>
+    document.getElementById("logoutBtn").addEventListener("click", logoutUser);
+
+    requireAuth().then(async (user) => {
+      const profile = await loadSellerProfile(user.uid);
+      const name = profile.name || user.displayName || user.email;
+      document.getElementById("userGreeting").textContent = `Hello, ${name}`;
+      await loadBillsList(
+        document.getElementById("billsList"),
+        document.getElementById("emptyState")
+      );
+    });
+  </script>
+</body>
+</html>

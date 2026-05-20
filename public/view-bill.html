@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Invoice — BillGen</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/quotation.css">
+</head>
+<body>
+  <div class="container no-print">
+    <nav class="nav-bar">
+      <a class="btn btn-secondary" href="dashboard.html">← Dashboard</a>
+      <div class="nav-actions">
+        <button class="btn btn-primary" id="downloadPdfBtn" type="button">Download PDF</button>
+        <button class="btn btn-secondary" id="printBtn" type="button">Print</button>
+        <a class="btn btn-secondary" href="create-bill.html">+ New</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="quotation-wrap">
+    <div id="billContainer"></div>
+    <div id="loadingState" class="empty-state">
+      <p>Loading invoice…</p>
+    </div>
+    <div id="notFound" class="empty-state" hidden>
+      <p id="notFoundMessage">Bill not found or you do not have access.</p>
+      <a class="btn btn-secondary" href="dashboard.html">Go to dashboard</a>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    // Test if html2pdf loads
+    console.log("[INIT] View-bill.html loading...");
+    window.addEventListener("load", () => {
+      console.log("[INIT] Page fully loaded");
+      console.log("[INIT] html2pdf available:", typeof html2pdf !== "undefined");
+      if (typeof html2pdf !== "undefined") {
+        console.log("[INIT] html2pdf.default available:", typeof html2pdf.default !== "undefined");
+        console.log("[INIT] html2pdf is callable:", typeof html2pdf === "function");
+      }
+    });
+  </script>
+  <script src="js/html2pdf.bundle.min.js"></script>
+  <script>
+    if (typeof html2pdf === "undefined") {
+      console.warn("[INIT] Local html2pdf failed to load, loading CDN fallback...");
+      var script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.onload = function() {
+        console.log("[INIT] CDN html2pdf loaded successfully");
+      };
+      script.onerror = function() {
+        console.error("[INIT] Failed to load html2pdf fallback script.");
+      };
+      document.head.appendChild(script);
+    }
+    console.log("[INIT] After html2pdf script tag, html2pdf available:", typeof html2pdf !== "undefined");
+  </script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/quotation-template.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/bills.js"></script>
+  <script>
+    console.log("[PAGE] Scripts loaded");
+    console.log("[PAGE] html2pdf available:", typeof html2pdf !== "undefined");
+    
+    const params = new URLSearchParams(window.location.search);
+    const billId = params.get("id");
+    let currentBillNumber = "";
+
+    const printBtn = document.getElementById("printBtn");
+    const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+    const loadingState = document.getElementById("loadingState");
+    const notFound = document.getElementById("notFound");
+    const notFoundMessage = document.getElementById("notFoundMessage");
+
+    function setActionsEnabled(enabled) {
+      console.log("[PAGE] setActionsEnabled:", enabled);
+      printBtn.disabled = !enabled;
+      downloadPdfBtn.disabled = !enabled;
+    }
+
+    setActionsEnabled(false);
+
+    printBtn.addEventListener("click", () => {
+      console.log("[ACTION] Print button clicked");
+      if (!document.getElementById("quotationDocument")) {
+        alert("Invoice is still loading. Please wait.");
+        return;
+      }
+      window.print();
+    });
+
+    downloadPdfBtn.addEventListener("click", () => {
+      console.log("[ACTION] Download PDF button clicked");
+      if (!document.getElementById("quotationDocument")) {
+        alert("Invoice is still loading. Please wait.");
+        return;
+      }
+      downloadQuotationPdf(currentBillNumber);
+    });
+
+    function showNotFound(message) {
+      console.log("[PAGE] Showing error:", message);
+      loadingState.hidden = true;
+      notFoundMessage.textContent = message;
+      notFound.hidden = false;
+      setActionsEnabled(false);
+    }
+
+    requireAuth().then(async (user) => {
+      console.log("[PAGE] User authenticated:", user.uid);
+      
+      if (!billId) {
+        showNotFound("Invalid bill link. Open a bill from the dashboard.");
+        return;
+      }
+
+      try {
+        console.log("[PAGE] Loading bill:", billId);
+        const result = await loadBillById(billId, user.uid);
+
+        if (result.error) {
+          const messages = {
+            "not-found": "Bill not found. It may have been deleted.",
+            "forbidden": "You do not have access to this bill.",
+            "permission-denied": "Cannot read bill — Firestore rules may be blocking access. Redeploy rules from the project.",
+            "missing-auth": "Please log in again to view this bill."
+          };
+          showNotFound(messages[result.error] || "Bill not found or you do not have access.");
+          return;
+        }
+
+        console.log("[PAGE] Bill loaded, bill number:", result.billNumber);
+        currentBillNumber = result.billNumber || result.id;
+        const profile = await loadSellerProfile(user.uid);
+        console.log("[PAGE] Profile loaded");
+        
+        loadingState.hidden = true;
+        document.getElementById("billContainer").innerHTML = renderQuotationHTML(result, profile);
+        
+        console.log("[PAGE] Invoice rendered, checking element...");
+        const quotDoc = document.getElementById("quotationDocument");
+        console.log("[PAGE] quotationDocument exists:", !!quotDoc);
+        
+        setActionsEnabled(true);
+        console.log("[PAGE] Ready for print/download");
+      } catch (error) {
+        console.error("[PAGE] Error:", error);
+        showNotFound(error.message || "Failed to load bill.");
+      }
+    });
+  </script>
+</body>
+</html>
