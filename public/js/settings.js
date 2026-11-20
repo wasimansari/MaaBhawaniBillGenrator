@@ -73,7 +73,7 @@ async function loadSettingsForm(userId) {
 }
 
 async function saveSettings(form, messageEl, submitBtn) {
-  setLoading(submitBtn, true);
+  setLoading(submitBtn, true, "Saving settings...");
   showMessage(messageEl, "", "error");
 
   try {

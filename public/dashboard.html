@@ -17,17 +17,96 @@
         </div>
       </div>
       <div class="nav-actions">
+        <button class="btn btn-secondary" id="openBulkModalBtn" type="button">⚡ Bulk Generate</button>
         <a class="btn btn-secondary" href="settings.html">Settings</a>
         <a class="btn btn-primary" href="create-bill.html">+ New Invoice</a>
         <button class="btn btn-ghost" id="logoutBtn" type="button">Logout</button>
       </div>
     </nav>
 
+    <!-- Stats Summary Cards -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <span class="stat-card-label">Total Tax Invoices</span>
+        <span class="stat-card-value" id="statInvoicesCount">0</span>
+        <span class="stat-card-sub">Active bills stored</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">Quotations</span>
+        <span class="stat-card-value" id="statQuotationsCount">0</span>
+        <span class="stat-card-sub">Estimates & quotes</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card-label">Total Revenue</span>
+        <span class="stat-card-value" id="statTotalRevenue">₹ 0.00</span>
+        <span class="stat-card-sub">Cumulative invoice value</span>
+      </div>
+    </div>
+
+    <!-- Dashboard Toolbar (Search, Filter, Actions) -->
+    <div class="dashboard-toolbar">
+      <div class="toolbar-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="billSearchInput" placeholder="Search by Invoice #, Customer name, or Mobile...">
+      </div>
+      <div class="toolbar-actions">
+        <select id="billTypeFilter" title="Filter by document type">
+          <option value="all">All Documents</option>
+          <option value="bill">Tax Invoices Only</option>
+          <option value="quotation">Quotations Only</option>
+        </select>
+      </div>
+    </div>
+
     <h2>Your bills</h2>
+    <div id="loadingBillsState" class="empty-state">
+      <div class="spinner-large"></div>
+      <p style="margin-top: 0.75rem; font-weight: 500;">Loading invoices from Firestore…</p>
+    </div>
     <div id="billsList" class="bills-grid"></div>
     <div id="emptyState" class="empty-state" hidden>
-      <p>No bills yet. Create your first bill to get started.</p>
-      <a class="btn btn-primary" href="create-bill.html" style="margin-top: 1rem; display: inline-flex;">Create Bill</a>
+      <p>No bills found. Create your first bill or use Bulk Generate.</p>
+      <a class="btn btn-primary" href="create-bill.html" style="margin-top: 1rem;">Create Bill</a>
+    </div>
+
+    <!-- Pagination Controls (25 per page for high volume / 500+ bills) -->
+    <div class="pagination-bar" id="paginationBar" hidden></div>
+  </div>
+
+  <!-- Bulk Generation Modal -->
+  <div id="bulkModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⚡ Bulk Generate Invoices</h3>
+        <button type="button" class="modal-close" id="closeBulkModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.95rem; margin-bottom: 1rem; color: var(--text);">
+          Generate high-volume invoices in Firestore using atomic batch writes. No storage issues or rate limits.
+        </p>
+        
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="bulkCountInput" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">Number of Invoices to Generate</label>
+          <input type="number" id="bulkCountInput" value="500" min="1" max="1000" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+          <small class="muted" style="display:block; margin-top: 0.35rem;">Recommended: 500 bills (Takes approx ~2-3 seconds, ~270 KB storage = 0.026% of 1 GB free limit).</small>
+        </div>
+
+        <div id="bulkProgressArea" class="progress-container" hidden>
+          <div class="progress-track">
+            <div class="progress-fill" id="bulkProgressFill"></div>
+          </div>
+          <div class="progress-status">
+            <span id="bulkProgressStatus">Preparing batch generation...</span>
+            <span id="bulkProgressPercent">0%</span>
+          </div>
+        </div>
+
+        <div id="bulkMessage" class="message" hidden></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelBulkBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="startBulkBtn">Start Generation (500 Bills)</button>
+      </div>
     </div>
   </div>
 
@@ -35,20 +114,112 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/assets-data.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/bills.js"></script>
   <script>
     document.getElementById("logoutBtn").addEventListener("click", logoutUser);
 
+    // Bulk Generator Modal controls
+    const bulkModal = document.getElementById("bulkModal");
+    const openBulkModalBtn = document.getElementById("openBulkModalBtn");
+    const closeBulkModalBtn = document.getElementById("closeBulkModalBtn");
+    const cancelBulkBtn = document.getElementById("cancelBulkBtn");
+    const startBulkBtn = document.getElementById("startBulkBtn");
+    const bulkCountInput = document.getElementById("bulkCountInput");
+    const bulkProgressArea = document.getElementById("bulkProgressArea");
+    const bulkProgressFill = document.getElementById("bulkProgressFill");
+    const bulkProgressStatus = document.getElementById("bulkProgressStatus");
+    const bulkProgressPercent = document.getElementById("bulkProgressPercent");
+    const bulkMessage = document.getElementById("bulkMessage");
+
+    openBulkModalBtn.addEventListener("click", () => {
+      bulkModal.hidden = false;
+      bulkProgressArea.hidden = true;
+      bulkMessage.hidden = true;
+      startBulkBtn.disabled = false;
+      bulkCountInput.disabled = false;
+      bulkProgressFill.style.width = "0%";
+    });
+
+    function closeBulkModal() {
+      if (!startBulkBtn.disabled) {
+        bulkModal.hidden = true;
+      }
+    }
+
+    closeBulkModalBtn.addEventListener("click", closeBulkModal);
+    cancelBulkBtn.addEventListener("click", closeBulkModal);
+
+    bulkCountInput.addEventListener("input", () => {
+      const val = parseInt(bulkCountInput.value, 10) || 500;
+      startBulkBtn.textContent = `Start Generation (${val} Bills)`;
+    });
+
+    startBulkBtn.addEventListener("click", async () => {
+      const count = parseInt(bulkCountInput.value, 10) || 500;
+      if (count < 1 || count > 1000) {
+        alert("Please enter a count between 1 and 1000.");
+        return;
+      }
+
+      startBulkBtn.disabled = true;
+      cancelBulkBtn.disabled = true;
+      closeBulkModalBtn.disabled = true;
+      bulkCountInput.disabled = true;
+      bulkProgressArea.hidden = false;
+      bulkMessage.hidden = true;
+
+      setLoading(startBulkBtn, true, "Generating...");
+
+      try {
+        const result = await bulkGenerateInvoices(count, (completed, total, pct) => {
+          bulkProgressFill.style.width = `${pct}%`;
+          bulkProgressPercent.textContent = `${pct}%`;
+          bulkProgressStatus.textContent = `Writing batch: ${completed} of ${total} bills committed...`;
+        });
+
+        bulkProgressStatus.textContent = "All bills generated successfully!";
+        bulkMessage.className = "message message-success";
+        bulkMessage.textContent = `Successfully generated ${result.count} bills (${result.startSerial} to ${result.endSerial})!`;
+        bulkMessage.hidden = false;
+
+        setTimeout(async () => {
+          bulkModal.hidden = true;
+          startBulkBtn.disabled = false;
+          cancelBulkBtn.disabled = false;
+          closeBulkModalBtn.disabled = false;
+          setLoading(startBulkBtn, false, "Start Generation");
+          // Reload dashboard
+          const loadingBills = document.getElementById("loadingBillsState");
+          if (loadingBills) loadingBills.hidden = false;
+          await loadBillsList(document.getElementById("billsList"), document.getElementById("emptyState"));
+          if (loadingBills) loadingBills.hidden = true;
+        }, 1200);
+      } catch (err) {
+        console.error("Bulk generation error:", err);
+        bulkMessage.className = "message message-error";
+        bulkMessage.textContent = "Error: " + err.message;
+        bulkMessage.hidden = false;
+        startBulkBtn.disabled = false;
+        cancelBulkBtn.disabled = false;
+        closeBulkModalBtn.disabled = false;
+        setLoading(startBulkBtn, false, "Start Generation");
+      }
+    });
+
     requireAuth().then(async (user) => {
       const profile = await loadSellerProfile(user.uid);
       const name = profile.name || user.displayName || user.email;
       document.getElementById("userGreeting").textContent = `Hello, ${name}`;
+      await loadCatalogItems(user.uid);
       await loadBillsList(
         document.getElementById("billsList"),
         document.getElementById("emptyState")
       );
+      const loadingBills = document.getElementById("loadingBillsState");
+      if (loadingBills) loadingBills.hidden = true;
     });
   </script>
 </body>

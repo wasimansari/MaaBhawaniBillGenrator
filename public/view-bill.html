@@ -14,7 +14,7 @@
       <div class="nav-actions">
         <button class="btn btn-primary" id="downloadPdfBtn" type="button">Download PDF</button>
         <button class="btn btn-secondary" id="printBtn" type="button">Print</button>
-        <a class="btn btn-secondary" href="create-bill.html">+ New</a>
+        <a class="btn btn-secondary" href="create-bill.html">+ New Invoice</a>
       </div>
     </nav>
   </div>
@@ -22,7 +22,8 @@
   <div class="quotation-wrap">
     <div id="billContainer"></div>
     <div id="loadingState" class="empty-state">
-      <p>Loading invoice…</p>
+      <div class="spinner-large"></div>
+      <p id="loadingStatusText" style="margin-top: 0.75rem; font-weight: 500;">Loading invoice preview…</p>
     </div>
     <div id="notFound" class="empty-state" hidden>
       <p id="notFoundMessage">Bill not found or you do not have access.</p>
@@ -64,6 +65,7 @@
     console.log("[INIT] After html2pdf script tag, html2pdf available:", typeof html2pdf !== "undefined");
   </script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/assets-data.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/quotation-template.js"></script>
   <script src="js/auth.js"></script>
@@ -74,6 +76,7 @@
     
     const params = new URLSearchParams(window.location.search);
     const billId = params.get("id");
+    const autoDownload = params.get("download") === "true";
     let currentBillNumber = "";
 
     const printBtn = document.getElementById("printBtn");
@@ -153,6 +156,13 @@
         
         setActionsEnabled(true);
         console.log("[PAGE] Ready for print/download");
+
+        if (autoDownload) {
+          console.log("[PAGE] Auto-download triggered");
+          setTimeout(() => {
+            downloadQuotationPdf(currentBillNumber);
+          }, 600);
+        }
       } catch (error) {
         console.error("[PAGE] Error:", error);
         showNotFound(error.message || "Failed to load bill.");

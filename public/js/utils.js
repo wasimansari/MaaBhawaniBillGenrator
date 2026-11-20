@@ -102,7 +102,17 @@ function calculateQuotationTotals(items, cgstPercent, sgstPercent) {
 }
 
 function getLogoUrl() {
+  if (typeof LOGO_DATA_URL !== "undefined" && LOGO_DATA_URL) {
+    return LOGO_DATA_URL;
+  }
   return "images/logo.png";
+}
+
+function getSignatureUrl() {
+  if (typeof SIGNATURE_DATA_URL !== "undefined" && SIGNATURE_DATA_URL) {
+    return SIGNATURE_DATA_URL;
+  }
+  return "images/signature.png";
 }
 
 function getBusinessFromProfile(profile) {

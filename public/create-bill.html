@@ -5,68 +5,110 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create Invoice — BillGen</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/quotation.css">
 </head>
 <body>
-  <div class="container">
+  <div class="container no-print">
     <nav class="nav-bar">
-      <h2>Create tax invoice</h2>
-      <a class="btn btn-secondary" href="dashboard.html">← Back</a>
+      <h2>Create Tax Invoice</h2>
+      <a class="btn btn-secondary" href="dashboard.html">← Back to Dashboard</a>
     </nav>
 
     <div class="card card-wide">
       <form id="billForm">
-        <div class="form-row">
+        <!-- Document Type Selection -->
+        <div class="form-row" style="margin-bottom: 1.5rem;">
           <div class="form-group">
-            <label for="customerName">Customer name</label>
-            <input id="customerName" name="customerName" type="text" required placeholder="e.g. NPS HAKIM MIYA TOLA">
-          </div>
-          <div class="form-group">
-            <label for="customerMobile">Customer mobile (optional)</label>
-            <input id="customerMobile" name="customerMobile" type="tel" maxlength="10">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="billDate">Invoice Date</label>
-            <input id="billDate" name="billDate" type="date">
-          </div>
-          <div class="form-group">
-            <label for="customerAddress">Customer address (optional)</label>
-            <input id="customerAddress" name="customerAddress" type="text" placeholder="Customer address">
+            <label>Document Type</label>
+            <div style="display: flex; gap: 1.5rem; margin-top: 0.25rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="radio" name="documentType" value="bill" checked> Bill (Tax Invoice)
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="radio" name="documentType" value="quotation"> Quotation
+              </label>
+            </div>
           </div>
         </div>
 
-        <div class="form-row" style="align-items: end; margin: 1rem 0;">
-          <div class="form-group">
-            <label for="catalogPick">Quick add from catalog</label>
-            <select id="catalogPick"></select>
+        <!-- BILL TO Section (for Bill type) -->
+        <div id="billToSection">
+          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: #f0f4f8;">BILL TO</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="customerName">Customer Name *</label>
+              <input id="customerName" name="customerName" type="text" placeholder="e.g. NPS Hakim Miya Tola">
+            </div>
+            <div class="form-group">
+              <label for="customerMobile">Customer Mobile (optional)</label>
+              <input id="customerMobile" name="customerMobile" type="tel" maxlength="10" placeholder="10-digit mobile">
+            </div>
           </div>
-          <button type="button" class="btn btn-secondary" id="addItemRow">+ Add item row</button>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="billDate">Invoice Date</label>
+              <input id="billDate" name="billDate" type="date">
+            </div>
+            <div class="form-group">
+              <label for="invoiceNumber">Invoice Number (Serial)</label>
+              <input id="invoiceNumber" name="invoiceNumber" type="text" placeholder="e.g. INV-0001">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="customerAddress">Customer Address (optional)</label>
+              <input id="customerAddress" name="customerAddress" type="text" placeholder="e.g. Motipur, Muzaffarpur, Bihar">
+            </div>
+          </div>
+        </div>
+
+        <!-- QUOTATION Section (for Quotation type) -->
+        <div id="quotationSection" style="display: none;">
+          <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: #f0f4f8;">QUOTATION DETAILS</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quotationDate">Quotation Date</label>
+              <input id="quotationDate" type="date">
+            </div>
+            <div class="form-group">
+              <label for="quotationNumber">Quotation Number (Serial)</label>
+              <input id="quotationNumber" type="text" placeholder="e.g. QTN-0001">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="quotationCustomer">Customer Name (optional)</label>
+              <input id="quotationCustomer" type="text" placeholder="e.g. ABC Enterprises">
+            </div>
+          </div>
+        </div>
+
+        <!-- ITEMS Section -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 0.5rem 0; flex-wrap: wrap; gap: 0.5rem;">
+          <label style="font-weight: 600; font-size: 1rem; color: var(--text); margin: 0;">ITEMS</label>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" id="openAddItemModalBtn">+ Add New Item to Dropdown</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="addItemRow">+ Add Row</button>
+          </div>
         </div>
 
         <table class="items-table">
           <thead>
             <tr>
-              <th>Description</th>
-              <th>Qty</th>
-              <th>Rate (₹)</th>
-              <th>Per</th>
-              <th>Amount</th>
-              <th></th>
+              <th style="min-width: 220px;">Item (Select from Dropdown)</th>
+              <th style="width: 85px;">Qty</th>
+              <th style="width: 130px;">Rate (₹)</th>
+              <th style="width: 75px;">Per</th>
+              <th style="width: 110px;">Amount</th>
+              <th style="width: 40px;"></th>
             </tr>
           </thead>
           <tbody id="itemsBody">
-            <tr class="item-row">
-              <td><input type="text" class="item-desc" placeholder="Description" required></td>
-              <td><input type="number" class="item-qty" min="0.01" step="0.01" value="1" required></td>
-              <td><input type="number" class="item-rate" min="0" step="0.01" value="0" required></td>
-              <td><input type="text" class="item-per" value="pcs" style="width:60px"></td>
-              <td class="item-amount">₹ 0.00</td>
-              <td><button type="button" class="btn-icon remove-item" title="Remove">×</button></td>
-            </tr>
+            <!-- Dynamically populated -->
           </tbody>
         </table>
 
+        <!-- Tax settings -->
         <div class="form-row" style="margin-top: 1rem;">
           <div class="form-group">
             <label for="cgstPercent">CGST (%)</label>
@@ -78,6 +120,7 @@
           </div>
         </div>
 
+        <!-- Totals summary -->
         <div class="totals-box">
           <p><span>Total Amount</span><span id="subtotalDisplay">₹ 0.00</span></p>
           <p><span>CGST</span><span id="cgstDisplay">₹ 0.00</span></p>
@@ -87,57 +130,234 @@
         </div>
 
         <div id="message" class="message" hidden></div>
-        <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top: 1rem; width: auto;">Save invoice</button>
+
+        <!-- Action buttons -->
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary" id="previewBtn">👁 Preview Invoice</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Save & Download Invoice</button>
+        </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Add New Item Modal -->
+  <div id="addItemModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add New Item to Catalog</h3>
+        <button type="button" class="modal-close" id="closeAddItemModal">&times;</button>
+      </div>
+      <form id="addNewItemForm">
+        <div class="modal-body">
+          <p class="muted" style="margin-bottom: 1rem; font-size: 0.9rem;">
+            Added item will immediately appear in the dropdown for all rows and be saved in your catalog.
+          </p>
+          <div class="form-group">
+            <label for="newItemDescription">Item Name / Description *</label>
+            <input type="text" id="newItemDescription" placeholder="e.g. PRINTER HP 1020, WIRELESS KEYBOARD" required>
+          </div>
+          <div class="form-group">
+            <label for="newItemDefaultPer">Default Unit (optional)</label>
+            <input type="text" id="newItemDefaultPer" placeholder="pcs" value="pcs">
+          </div>
+          <div id="addItemModalMessage" class="message" hidden></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelAddItemModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveNewItemBtn">Add to Dropdown</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Invoice Preview Modal -->
+  <div id="previewModal" class="modal-overlay" hidden>
+    <div class="modal-box modal-box-large">
+      <div class="modal-header no-print">
+        <h3>Invoice Preview (Before Print / Download)</h3>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" id="previewPrintBtn">Print</button>
+          <button type="button" class="btn btn-primary btn-sm" id="previewSavePdfBtn">Save & Download PDF</button>
+          <button type="button" class="modal-close" id="closePreviewModal">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body quotation-wrap" id="previewModalContent" style="padding: 1rem 0;">
+        <!-- Live invoice preview rendered here -->
+      </div>
     </div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/validators.js"></script>
+  <script src="js/assets-data.js"></script>
   <script src="js/utils.js"></script>
+  <script src="js/quotation-template.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/bills.js"></script>
   <script>
     const form = document.getElementById("billForm");
     const messageEl = document.getElementById("message");
     const submitBtn = document.getElementById("submitBtn");
+    const previewBtn = document.getElementById("previewBtn");
     let formHelpers = null;
 
-    // Set default date to today
+    // Set default invoice dates
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById("billDate").value = today;
+    const billDateInput = document.getElementById("billDate");
+    if (billDateInput) billDateInput.value = today;
+    const quotationDateInput = document.getElementById("quotationDate");
+    if (quotationDateInput) quotationDateInput.value = today;
 
-    // Check if editing existing bill
-    const params = new URLSearchParams(window.location.search);
-    const isEdit = params.get("edit") === "true";
-    
-    if (isEdit) {
-      const editBillData = sessionStorage.getItem("editBillData");
-      if (editBillData) {
-        const bill = JSON.parse(editBillData);
-        document.getElementById("customerName").value = bill.customerName || "";
-        document.getElementById("customerAddress").value = bill.customerAddress || "";
-        document.getElementById("customerMobile").value = bill.customerMobile || "";
-        document.getElementById("cgstPercent").value = bill.cgstPercent || 9;
-        document.getElementById("sgstPercent").value = bill.sgstPercent || 9;
-        
-        // Set bill date if available
-        if (bill.billDate) {
-          const billDate = bill.billDate.toDate ? bill.billDate.toDate() : new Date(bill.billDate);
-          document.getElementById("billDate").value = billDate.toISOString().split('T')[0];
+    // Initialize document type toggle
+    initDocumentTypeToggle();
+
+    // Modal elements
+    const addItemModal = document.getElementById("addItemModal");
+    const openAddItemModalBtn = document.getElementById("openAddItemModalBtn");
+    const closeAddItemModalBtn = document.getElementById("closeAddItemModal");
+    const cancelAddItemModalBtn = document.getElementById("cancelAddItemModal");
+    const addNewItemForm = document.getElementById("addNewItemForm");
+    const newItemDescInput = document.getElementById("newItemDescription");
+    const newItemPerInput = document.getElementById("newItemDefaultPer");
+    const addItemModalMessage = document.getElementById("addItemModalMessage");
+
+    const previewModal = document.getElementById("previewModal");
+    const closePreviewModalBtn = document.getElementById("closePreviewModal");
+    const previewPrintBtn = document.getElementById("previewPrintBtn");
+    const previewSavePdfBtn = document.getElementById("previewSavePdfBtn");
+
+    openAddItemModalBtn.addEventListener("click", () => openAddItemModal());
+    closeAddItemModalBtn.addEventListener("click", closeAddItemModal);
+    cancelAddItemModalBtn.addEventListener("click", closeAddItemModal);
+
+    closePreviewModalBtn.addEventListener("click", () => {
+      previewModal.hidden = true;
+    });
+
+    previewPrintBtn.addEventListener("click", () => {
+      window.print();
+    });
+
+    previewSavePdfBtn.addEventListener("click", () => {
+      previewModal.hidden = true;
+      saveBill(form, formHelpers, messageEl, submitBtn);
+    });
+
+    // Add new item submission
+    addNewItemForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const itemName = newItemDescInput.value.trim();
+      const itemPer = newItemPerInput.value.trim() || "pcs";
+
+      if (!itemName) return;
+
+      const saveBtn = document.getElementById("saveNewItemBtn");
+      setLoading(saveBtn, true);
+
+      try {
+        const added = await addNewCatalogItem(itemName, itemPer);
+
+        // If a specific row opened this modal, set its selection
+        if (pendingRowForNewItem) {
+          const select = pendingRowForNewItem.querySelector(".item-desc");
+          if (select) {
+            select.value = added.description;
+            const perInput = pendingRowForNewItem.querySelector(".item-per");
+            if (perInput && added.per) perInput.value = added.per;
+            const rateInput = pendingRowForNewItem.querySelector(".item-rate");
+            if (rateInput) rateInput.focus();
+            formHelpers.refreshRowAmount(pendingRowForNewItem);
+          }
         }
-        
-        submitBtn.textContent = "Update invoice";
-        document.querySelector("h2").textContent = "Update tax invoice";
-      }
-    }
 
-    requireAuth().then(() => {
+        closeAddItemModal();
+      } catch (err) {
+        showMessage(addItemModalMessage, err.message, "error");
+      } finally {
+        setLoading(saveBtn, false);
+      }
+    });
+
+    // Preview button
+    previewBtn.addEventListener("click", async () => {
+      await showInvoicePreview(formHelpers);
+    });
+
+    // Require authentication and initialize
+    requireAuth().then(async (user) => {
+      // Load user's catalog items from Firestore
+      await loadCatalogItems(user.uid);
+
       formHelpers = bindBillForm();
-      loadCatalogQuickAdd(document.getElementById("catalogPick"), formHelpers);
+
+      // Check if editing existing bill
+      const params = new URLSearchParams(window.location.search);
+      const isEdit = params.get("edit") === "true";
+      const editBillData = sessionStorage.getItem("editBillData");
+
+      if (isEdit && editBillData) {
+        try {
+          const bill = JSON.parse(editBillData);
+
+          if (bill.documentType) {
+            const radio = document.querySelector(`input[name="documentType"][value="${bill.documentType}"]`);
+            if (radio) {
+              radio.checked = true;
+              initDocumentTypeToggle();
+            }
+          }
+
+          if (getCustomerNameField()) getCustomerNameField().value = bill.customerName || "";
+          if (getCustomerAddressField()) getCustomerAddressField().value = bill.customerAddress || "";
+          if (getCustomerMobileField()) getCustomerMobileField().value = bill.customerMobile || "";
+          if (document.getElementById("cgstPercent")) document.getElementById("cgstPercent").value = bill.cgstPercent != null ? bill.cgstPercent : 9;
+          if (document.getElementById("sgstPercent")) document.getElementById("sgstPercent").value = bill.sgstPercent != null ? bill.sgstPercent : 9;
+
+          if (bill.billDate && getDateField()) {
+            const billDate = bill.billDate.toDate ? bill.billDate.toDate() : new Date(bill.billDate);
+            getDateField().value = billDate.toISOString().split('T')[0];
+          }
+
+          if (bill.billNumber && getInvoiceNumberField()) {
+            getInvoiceNumberField().value = bill.billNumber;
+          }
+
+          // Populate items in edit mode
+          const itemsBody = document.getElementById("itemsBody");
+          itemsBody.innerHTML = "";
+
+          if (Array.isArray(bill.items) && bill.items.length > 0) {
+            bill.items.forEach((item) => {
+              formHelpers.addRow(item);
+            });
+          } else {
+            formHelpers.addRow();
+          }
+
+          submitBtn.textContent = bill.documentType === 'quotation' ? "Update & Download Quotation" : "Update & Download Invoice";
+          document.querySelector("h2").textContent = bill.documentType === 'quotation' ? "Update Quotation" : "Update Tax Invoice";
+        } catch (err) {
+          console.error("[EDIT] Error parsing editBillData:", err);
+          formHelpers.addRow();
+        }
+      } else {
+        // Initial clean row with next alphanumeric serial number
+        const invField = document.getElementById("invoiceNumber");
+        if (invField && !invField.value) {
+          invField.value = await getNextSerialNumber(user.uid, "bill");
+        }
+        const qtnField = document.getElementById("quotationNumber");
+        if (qtnField && !qtnField.value) {
+          qtnField.value = await getNextSerialNumber(user.uid, "quotation");
+        }
+        formHelpers.addRow();
+      }
+
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         saveBill(form, formHelpers, messageEl, submitBtn);

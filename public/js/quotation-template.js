@@ -12,14 +12,31 @@ function renderQuotationHTML(bill, profile) {
     amountInWords: bill.amountInWords || "",
     cgstPercent: Number(bill.cgstPercent) || 9,
     sgstPercent: Number(bill.sgstPercent) || 9,
-    createdAt: bill.createdAt || new Date()
+    createdAt: bill.createdAt || new Date(),
+    documentType: bill.documentType || 'bill'
   };
 
   const business = getBusinessFromProfile(profile);
-  const logoUrl = getLogoUrl();
+  const logoUrl = (typeof LOGO_DATA_URL !== "undefined" && LOGO_DATA_URL)
+    ? LOGO_DATA_URL
+    : (typeof getLogoUrl === "function" ? getLogoUrl() : "images/logo.png");
+
+  const signatureUrl = (typeof SIGNATURE_DATA_URL !== "undefined" && SIGNATURE_DATA_URL)
+    ? SIGNATURE_DATA_URL
+    : (typeof getSignatureUrl === "function" ? getSignatureUrl() : "images/signature.png");
   const invoiceDate = formatDateInvoice(safeBill.createdAt);
   const cgstPct = safeBill.cgstPercent;
   const sgstPct = safeBill.sgstPercent;
+  
+  // Determine if this is a quotation
+  // Check both documentType and if billNumber seems auto-generated (quotations have random numbers)
+  let isQuotation = safeBill.documentType === 'quotation';
+  
+  // Debug logging
+  console.log("[QUOTATION] Bill object keys:", Object.keys(bill));
+  console.log("[QUOTATION] Bill.documentType from DB:", bill.documentType);
+  console.log("[QUOTATION] SafeBill.documentType:", safeBill.documentType);
+  console.log("[QUOTATION] isQuotation result:", isQuotation);
 
   const itemRows = safeBill.items.map((item, index) => {
     const amount = calculateLineTotal(item.qty, item.rate);
@@ -41,31 +58,54 @@ function renderQuotationHTML(bill, profile) {
 
   let html = '<div class="quotation-document" id="quotationDocument">';
 
-  html += '<div class="q-header"><div class="q-logo-wrap">';
-  html += `<img src="${logoUrl}" alt="Company Logo" class="q-logo" crossorigin="anonymous" loading="eager" onerror="console.warn('Logo failed to load'); this.style.visibility='hidden'">`;
-  html += '</div><div class="q-company">';
+  // Watermark logo centered in background of invoice & PDF
+  html += '<div class="q-watermark" aria-hidden="true">';
+  html += `<img src="${logoUrl}" alt="" class="q-watermark-img" width="300" height="300" loading="eager" onerror="this.style.display='none'">`;
+  html += '</div>';
+
+  html += '<div class="q-header">';
+  html += '<div class="q-company">';
   html += `<h1 class="q-company-name">${escapeHtml(business.name)}</h1>`;
-  html += `<p>${escapeHtml(business.address)}</p>`;
-  html += `<p>Mobile - (+91) ${escapeHtml(business.mobile)}, Email Id- ${escapeHtml(business.email)}</p>`;
+  html += `<p class="q-company-address">${escapeHtml(business.address)}</p>`;
+  html += `<p class="q-company-contact">Mobile - (+91) ${escapeHtml(business.mobile)}${business.email ? ` | Email - ${escapeHtml(business.email)}` : ""}</p>`;
   if (business.tagline) html += `<p class="q-tagline">${escapeHtml(business.tagline)}</p>`;
-  html += '</div></div>';
+  html += '</div>';
+  html += '<div class="q-logo-wrap">';
+  html += `<img src="${logoUrl}" alt="Company Logo" class="q-logo" loading="eager" onerror="console.warn('Logo failed to load:', this.src); this.style.display='none'">`;
+  html += '</div>';
+  html += '</div>';
 
-  html += '<div class="q-billto">';
-  html += '<div class="q-billto-title">BILL TO</div>';
-  html += '<div class="q-billto-row">';
-  html += `<span><strong>Name:-</strong> ${escapeHtml(bill.customerName || "")}</span>`;
-  html += `<span><strong>Date:-</strong> ${invoiceDate}</span>`;
-  html += '</div>';
-  html += '<div class="q-billto-row">';
-  html += `<span><strong>Address:-</strong> ${escapeHtml(bill.customerAddress || "")}</span>`;
-  html += `<span><strong>Invoice No-</strong> ${escapeHtml(bill.billNumber)}</span>`;
-  html += '</div>';
-  if (bill.customerMobile) {
-    html += `<div class="q-billto-row q-billto-mobile"><span><strong>Mobile:-</strong> ${escapeHtml(bill.customerMobile)}</span></div>`;
+  // Show BILL TO section only for bills, not for quotations
+  if (!isQuotation) {
+    html += '<div class="q-billto">';
+    html += '<div class="q-billto-title">BILL TO</div>';
+    html += '<div class="q-billto-row">';
+    html += `<span><strong>Name:-</strong> ${escapeHtml(bill.customerName || "")}</span>`;
+    html += `<span><strong>Date:-</strong> ${invoiceDate}</span>`;
+    html += '</div>';
+    html += '<div class="q-billto-row">';
+    html += `<span><strong>Address:-</strong> ${escapeHtml(bill.customerAddress || "")}</span>`;
+    html += `<span><strong>Invoice No-</strong> ${escapeHtml(bill.billNumber)}</span>`;
+    html += '</div>';
+    if (bill.customerMobile) {
+      html += `<div class="q-billto-row q-billto-mobile"><span><strong>Mobile:-</strong> ${escapeHtml(bill.customerMobile)}</span></div>`;
+    }
+    html += '</div>';
+  } else {
+    // Show QUOTATION heading and details for quotations
+    html += '<div class="q-billto">';
+    html += '<div class="q-billto-title">QUOTATION DETAILS</div>';
+    html += '<div class="q-billto-row">';
+    html += `<span><strong>Quotation No:-</strong> ${escapeHtml(bill.billNumber)}</span>`;
+    html += `<span><strong>Date:-</strong> ${invoiceDate}</span>`;
+    html += '</div>';
+    if (bill.customerName) {
+      html += `<div class="q-billto-row"><span><strong>Client / Customer:-</strong> ${escapeHtml(bill.customerName)}</span></div>`;
+    }
+    html += '</div>';
   }
-  html += '</div>';
 
-  html += '<div class="q-invoice-title">Tax Invoice</div>';
+  html += `<div class="q-invoice-title">${isQuotation ? 'Quotation Items' : 'Tax Invoice'}</div>`;
 
   html += '<table class="q-table"><thead><tr>';
   html += '<th class="col-sl">SI No.</th>';
@@ -96,11 +136,13 @@ function renderQuotationHTML(bill, profile) {
   html += `<p>A/C No- ${escapeHtml(business.accountNo)}, IFSC Code- ${escapeHtml(business.ifsc)}</p>`;
   html += '</div>';
   html += '<div class="q-declaration"><strong>Declaration</strong>';
-  html += '<p>We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>';
+  html += `<p>We declare that this ${isQuotation ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</p>`;
   html += '<div class="q-signature">';
-  html += `<p>For ${escapeHtml(business.name)}</p>`;
-  html += '<div class="sig-line"></div>';
-  html += '<p>Authorized Signature</p>';
+  html += `<p class="q-sig-company">For ${escapeHtml(business.name)}</p>`;
+  html += '<div class="q-sig-wrap">';
+  html += `<img src="${signatureUrl}" alt="Signature" class="q-signature-img" loading="eager" onerror="this.style.display='none'">`;
+  html += '</div>';
+  html += '<p class="q-sig-title">Authorized Signature</p>';
   html += '</div></div></div>';
 
   if (gstLine) html += `<p class="q-gstin">${gstLine}</p>`;

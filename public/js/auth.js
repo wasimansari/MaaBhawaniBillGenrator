@@ -4,10 +4,19 @@ function showMessage(el, text, type) {
   el.hidden = !text;
 }
 
-function setLoading(button, loading) {
+function setLoading(button, loading, loadingText = "Please wait...") {
+  if (!button) return;
   button.disabled = loading;
-  button.dataset.originalText = button.dataset.originalText || button.textContent;
-  button.textContent = loading ? "Please wait..." : button.dataset.originalText;
+  if (loading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+    button.innerHTML = `<span class="spinner-icon"></span> <span>${loadingText}</span>`;
+  } else {
+    if (button.dataset.originalHtml) {
+      button.innerHTML = button.dataset.originalHtml;
+    }
+  }
 }
 
 async function requireAuth(redirectTo = "login.html") {
@@ -62,7 +71,7 @@ async function registerUser(form, messageEl, submitBtn) {
     return;
   }
 
-  setLoading(submitBtn, true);
+  setLoading(submitBtn, true, "Creating account...");
   showMessage(messageEl, "", "error");
 
   try {
@@ -107,7 +116,7 @@ async function loginUser(form, messageEl, submitBtn) {
     return;
   }
 
-  setLoading(submitBtn, true);
+  setLoading(submitBtn, true, "Logging in...");
   showMessage(messageEl, "", "error");
 
   try {
