@@ -17,6 +17,14 @@
         "destination": "/create-bill.html"
       },
       {
+        "source": "/settings",
+        "destination": "/settings.html"
+      },
+      {
+        "source": "/register",
+        "destination": "/register.html"
+      },
+      {
         "source": "/login",
         "destination": "/login.html"
       }

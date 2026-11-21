@@ -12,6 +12,20 @@ const DEFAULT_BUSINESS = {
   ifsc: "CBIN0R10001"
 };
 
+async function ensureAuthenticatedUser() {
+  if (auth.currentUser) return auth.currentUser;
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+    if (auth.currentUser) return auth.currentUser;
+  }
+  return new Promise((resolve) => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      unsub();
+      resolve(u);
+    });
+  });
+}
+
 const DEFAULT_ADDITIONAL_ITEMS = [
   { description: "MONITOR(24 INCH)", per: "pcs", rate: 9500 },
   { description: "KEYBOARD", per: "pcs", rate: 550 },
@@ -67,7 +81,7 @@ function createCatalogRow(item = {}) {
 
     setLoading(updateBtn, true, "Saving...");
     try {
-      const user = auth.currentUser;
+      const user = await ensureAuthenticatedUser();
       if (!user) throw new Error("Please log in first.");
 
       const allItems = getCatalogFromTable();
@@ -103,7 +117,7 @@ function createCatalogRow(item = {}) {
 
     // Persist removal to Firestore
     try {
-      const user = auth.currentUser;
+      const user = await ensureAuthenticatedUser();
       if (user) {
         const remainingItems = getCatalogFromTable();
         await db.collection("users").doc(user.uid).set({
@@ -196,7 +210,7 @@ async function saveSettings(form, messageEl, submitBtn) {
   showMessage(messageEl, "", "error");
 
   try {
-    const user = auth.currentUser;
+    const user = await ensureAuthenticatedUser();
     const businessData = {
       name: form.businessName.value.trim(),
       address: form.businessAddress.value.trim(),

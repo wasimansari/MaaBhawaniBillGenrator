@@ -54,22 +54,7 @@ async function requireAuth(redirectTo = "login.html") {
     return auth.currentUser;
   }
 
-  // 2. Instant resolution from localStorage snapshot (eliminates 400-800ms Firebase handshake latency)
-  const cached = getCachedAuthUser();
-  if (cached && cached.uid) {
-    // In background: verify session with Firebase auth state
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        setCachedAuthUser(user);
-      } else {
-        setCachedAuthUser(null);
-        window.location.href = redirectTo;
-      }
-    });
-    return cached;
-  }
-
-  // 3. Fallback: Wait for onAuthStateChanged if no cached snapshot
+  // 2. Wait for Firebase SDK to fully verify session from IndexedDB and attach auth tokens
   if (typeof auth.authStateReady === "function") {
     await auth.authStateReady();
   }
@@ -77,6 +62,8 @@ async function requireAuth(redirectTo = "login.html") {
     setCachedAuthUser(auth.currentUser);
     return auth.currentUser;
   }
+
+  // 3. Fallback: Wait for onAuthStateChanged
   return new Promise((resolve) => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       unsubscribe();

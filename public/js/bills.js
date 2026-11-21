@@ -12,6 +12,20 @@ const DEFAULT_CATALOG_ITEMS = [
 let catalogItems = [];
 let pendingRowForNewItem = null;
 
+async function ensureAuthenticatedUser() {
+  if (auth.currentUser) return auth.currentUser;
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+    if (auth.currentUser) return auth.currentUser;
+  }
+  return new Promise((resolve) => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      unsub();
+      resolve(u);
+    });
+  });
+}
+
 function formatSerialNumber(prefix, num, padLength = 4) {
   return `${prefix}-${String(num).padStart(padLength, "0")}`;
 }
@@ -167,7 +181,7 @@ function initDocumentTypeToggle() {
   async function updateSections() {
     const checkedRadio = document.querySelector('input[name="documentType"]:checked');
     const documentType = checkedRadio ? checkedRadio.value : "bill";
-    const user = auth.currentUser;
+    const user = await ensureAuthenticatedUser();
 
     if (documentType === "quotation") {
       if (billToSection) billToSection.style.display = "none";
@@ -306,7 +320,7 @@ async function addNewCatalogItem(itemName, unit = "pcs", rate = 0) {
     resultItem = existing;
   }
 
-  const user = auth.currentUser;
+  const user = await ensureAuthenticatedUser();
   if (user) {
     await db.collection("users").doc(user.uid).set({
       additionalItems: catalogItems
@@ -333,7 +347,7 @@ async function updateCatalogItem(oldDescription, updatedItem = {}) {
       item.rate = Number(updatedItem.rate) || 0;
     }
 
-    const user = auth.currentUser;
+    const user = await ensureAuthenticatedUser();
     if (user) {
       await db.collection("users").doc(user.uid).set({
         additionalItems: catalogItems
@@ -350,7 +364,7 @@ async function deleteCatalogItem(description) {
   const idx = catalogItems.findIndex((it) => it.description.toLowerCase() === trimmed.toLowerCase());
   if (idx !== -1) {
     catalogItems.splice(idx, 1);
-    const user = auth.currentUser;
+    const user = await ensureAuthenticatedUser();
     if (user) {
       await db.collection("users").doc(user.uid).set({
         additionalItems: catalogItems
@@ -568,7 +582,7 @@ async function showInvoicePreview(helpers) {
     return;
   }
 
-  const user = auth.currentUser;
+  const user = await ensureAuthenticatedUser();
   const profile = user ? await loadSellerProfile(user.uid) : {};
   const previewModal = document.getElementById("previewModal");
   const previewContent = document.getElementById("previewModalContent");
@@ -653,7 +667,13 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
   }
 
   const totals = calculateQuotationTotals(items, cgstPercent, sgstPercent);
-  const user = auth.currentUser;
+  const user = await ensureAuthenticatedUser();
+  if (!user || !user.uid) {
+    showMessage(messageEl, "Please log in before saving an invoice.", "error");
+    hideActionLoading();
+    setLoading(submitBtn, false);
+    return;
+  }
 
   setLoading(submitBtn, true, "Saving invoice...");
   showActionLoading("Saving invoice & preparing PDF...", "Storing securely in Firestore database");
@@ -705,7 +725,10 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
       targetBillId = docRef.id;
     }
 
-    try { sessionStorage.removeItem("dashboard_bills_" + user.uid); } catch (e) {}
+    try {
+      sessionStorage.removeItem("dashboard_bills_" + user.uid);
+      dashboardBillsCache = [];
+    } catch (e) {}
 
     // Redirect to view-bill with download=true so user sees the preview AND gets automatic PDF download!
     window.location.href = `view-bill.html?id=${encodeURIComponent(targetBillId)}&download=true`;
@@ -809,8 +832,8 @@ async function loadBillsDashboard({
   statsQuotationsEl,
   statsRevenueEl
 }) {
-  const user = auth.currentUser;
-  if (!user) return;
+  const user = await ensureAuthenticatedUser();
+  if (!user || !user.uid) return;
 
   function updateStatsAndRender() {
     let countInvoices = 0;
@@ -845,14 +868,43 @@ async function loadBillsDashboard({
 
   // 2. Fetch fresh snapshot from Firestore (fast local cache via IndexedDB)
   try {
-    const snapshot = await db.collection("bills")
-      .where("userId", "==", user.uid)
-      .orderBy("createdAt", "desc")
-      .get();
+    let snapshot;
+    try {
+      snapshot = await db.collection("bills")
+        .where("userId", "==", user.uid)
+        .orderBy("createdAt", "desc")
+        .get();
+    } catch (orderErr) {
+      console.warn("[BILLS] Query with orderBy failed, querying with userId filter only:", orderErr);
+      snapshot = await db.collection("bills")
+        .where("userId", "==", user.uid)
+        .get();
+    }
 
     const freshBills = [];
     snapshot.forEach((doc) => {
       freshBills.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Client-side sort guarantees newest documents always appear at the top
+    freshBills.sort((a, b) => {
+      const getMs = (item) => {
+        if (!item) return 0;
+        if (item.createdAt) {
+          if (typeof item.createdAt.toMillis === "function") return item.createdAt.toMillis();
+          if (item.createdAt.seconds) return item.createdAt.seconds * 1000;
+          const d = new Date(item.createdAt);
+          if (!isNaN(d.getTime())) return d.getTime();
+        }
+        if (item.billDate) {
+          if (typeof item.billDate.toMillis === "function") return item.billDate.toMillis();
+          if (item.billDate.seconds) return item.billDate.seconds * 1000;
+          const d = new Date(item.billDate);
+          if (!isNaN(d.getTime())) return d.getTime();
+        }
+        return 0;
+      };
+      return getMs(b) - getMs(a);
     });
 
     dashboardBillsCache = freshBills;
@@ -1228,7 +1280,7 @@ async function downloadQuotationPdf(billNumber) {
 }
 
 async function deleteBill(billId) {
-  const user = auth.currentUser;
+  const user = await ensureAuthenticatedUser();
   if (!user) {
     alert("Please log in to delete a bill.");
     return;
@@ -1250,6 +1302,10 @@ async function deleteBill(billId) {
     }
 
     await billRef.delete();
+    try {
+      sessionStorage.removeItem("dashboard_bills_" + user.uid);
+      dashboardBillsCache = [];
+    } catch (e) {}
     location.reload();
   } catch (error) {
     console.error("[DELETE] Error:", error);
@@ -1258,7 +1314,7 @@ async function deleteBill(billId) {
 }
 
 async function editBill(billId, billData) {
-  const user = auth.currentUser;
+  const user = await ensureAuthenticatedUser();
   if (!user) {
     alert("Please log in to edit a bill.");
     return;
@@ -1275,7 +1331,7 @@ async function editBill(billId, billData) {
 }
 
 async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
-  const user = auth.currentUser;
+  const user = await ensureAuthenticatedUser();
   if (!user) throw new Error("User must be logged in to generate bills.");
 
   let count = 500;
@@ -1439,6 +1495,11 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
     // Brief yield to allow browser UI thread to update progress bar smoothly
     await new Promise((r) => setTimeout(r, 60));
   }
+
+  try {
+    sessionStorage.removeItem("dashboard_bills_" + user.uid);
+    dashboardBillsCache = [];
+  } catch (e) {}
 
   return {
     success: true,

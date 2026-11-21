@@ -21,9 +21,6 @@ function renderQuotationHTML(bill, profile) {
     ? LOGO_DATA_URL
     : (typeof getLogoUrl === "function" ? getLogoUrl() : "images/logo.png");
 
-  const signatureUrl = (typeof SIGNATURE_DATA_URL !== "undefined" && SIGNATURE_DATA_URL)
-    ? SIGNATURE_DATA_URL
-    : (typeof getSignatureUrl === "function" ? getSignatureUrl() : "images/signature.png");
   const invoiceDate = formatDateInvoice(safeBill.createdAt);
   const cgstPct = safeBill.cgstPercent;
   const sgstPct = safeBill.sgstPercent;
@@ -140,9 +137,7 @@ function renderQuotationHTML(bill, profile) {
   html += `<p>We declare that this ${isQuotation ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</p>`;
   html += '<div class="q-signature">';
   html += `<p class="q-sig-company">For ${escapeHtml(business.name)}</p>`;
-  html += '<div class="q-sig-wrap">';
-  html += `<img src="${signatureUrl}" alt="Signature" class="q-signature-img" loading="eager" onerror="this.style.display='none'">`;
-  html += '</div>';
+  html += '<div class="q-sig-wrap"></div>';
   html += '<p class="q-sig-title">Authorized Signature</p>';
   html += '</div></div></div>';
 
