@@ -705,6 +705,8 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
       targetBillId = docRef.id;
     }
 
+    try { sessionStorage.removeItem("dashboard_bills_" + user.uid); } catch (e) {}
+
     // Redirect to view-bill with download=true so user sees the preview AND gets automatic PDF download!
     window.location.href = `view-bill.html?id=${encodeURIComponent(targetBillId)}&download=true`;
   } catch (error) {
@@ -804,32 +806,61 @@ async function loadBillsDashboard({
   const user = auth.currentUser;
   if (!user) return;
 
-  const snapshot = await db.collection("bills")
-    .where("userId", "==", user.uid)
-    .orderBy("createdAt", "desc")
-    .get();
+  function updateStatsAndRender() {
+    let countInvoices = 0;
+    let countQuotations = 0;
+    let totalRevenue = 0;
 
-  dashboardBillsCache = [];
-  snapshot.forEach((doc) => {
-    dashboardBillsCache.push({ id: doc.id, ...doc.data() });
-  });
+    dashboardBillsCache.forEach((bill) => {
+      if (bill.documentType === "quotation") {
+        countQuotations++;
+      } else {
+        countInvoices++;
+        totalRevenue += Number(bill.grandTotal) || 0;
+      }
+    });
 
-  let countInvoices = 0;
-  let countQuotations = 0;
-  let totalRevenue = 0;
+    if (statsInvoicesEl) statsInvoicesEl.textContent = countInvoices.toLocaleString("en-IN");
+    if (statsQuotationsEl) statsQuotationsEl.textContent = countQuotations.toLocaleString("en-IN");
+    if (statsRevenueEl) statsRevenueEl.textContent = formatCurrency(totalRevenue);
 
-  dashboardBillsCache.forEach((bill) => {
-    if (bill.documentType === "quotation") {
-      countQuotations++;
-    } else {
-      countInvoices++;
-      totalRevenue += Number(bill.grandTotal) || 0;
+    applyFiltersAndRender();
+  }
+
+  // 1. Instant render from cache (0ms) for instant page display
+  const cacheKey = "dashboard_bills_" + user.uid;
+  try {
+    const cachedStr = sessionStorage.getItem(cacheKey);
+    if (cachedStr && (!dashboardBillsCache || dashboardBillsCache.length === 0)) {
+      dashboardBillsCache = JSON.parse(cachedStr);
+      updateStatsAndRender();
     }
-  });
+  } catch (e) {}
 
-  if (statsInvoicesEl) statsInvoicesEl.textContent = countInvoices.toLocaleString("en-IN");
-  if (statsQuotationsEl) statsQuotationsEl.textContent = countQuotations.toLocaleString("en-IN");
-  if (statsRevenueEl) statsRevenueEl.textContent = formatCurrency(totalRevenue);
+  // 2. Fetch fresh snapshot from Firestore (fast local cache via IndexedDB)
+  try {
+    const snapshot = await db.collection("bills")
+      .where("userId", "==", user.uid)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const freshBills = [];
+    snapshot.forEach((doc) => {
+      freshBills.push({ id: doc.id, ...doc.data() });
+    });
+
+    dashboardBillsCache = freshBills;
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(freshBills));
+    } catch (e) {}
+
+    updateStatsAndRender();
+  } catch (err) {
+    console.error("[BILLS] Error loading bills dashboard:", err);
+    if (!dashboardBillsCache || dashboardBillsCache.length === 0) {
+      if (emptyEl) emptyEl.hidden = false;
+    }
+  }
 
   function applyFiltersAndRender() {
     const term = (searchInput ? searchInput.value : "").trim().toLowerCase();
@@ -872,10 +903,11 @@ async function loadBillsDashboard({
     const endIndex = Math.min(startIndex + DASHBOARD_PAGE_SIZE, totalBills);
     const pageItems = dashboardFilteredBills.slice(startIndex, endIndex);
 
+    const frag = document.createDocumentFragment();
     pageItems.forEach((bill) => {
-      const card = renderBillCardElement(bill);
-      container.appendChild(card);
+      frag.appendChild(renderBillCardElement(bill));
     });
+    container.appendChild(frag);
 
     if (paginationEl) {
       paginationEl.innerHTML = `
@@ -970,14 +1002,58 @@ async function loadBillById(billId, uid) {
   }
 }
 
-async function loadSellerProfile(uid) {
+let _cachedProfile = null;
+let _cachedProfileUid = null;
+
+async function loadSellerProfile(uid, forceRefresh = false) {
+  if (!uid) return {};
+
+  // 1. In-memory cache
+  if (!forceRefresh && _cachedProfile && _cachedProfileUid === uid) {
+    return _cachedProfile;
+  }
+
+  // 2. SessionStorage cache (instant 0ms response)
+  if (!forceRefresh) {
+    try {
+      const stored = sessionStorage.getItem("seller_profile_" + uid);
+      if (stored) {
+        _cachedProfile = JSON.parse(stored);
+        _cachedProfileUid = uid;
+        // Background revalidate without blocking UI
+        db.collection("users").doc(uid).get().then((doc) => {
+          if (doc.exists) {
+            _cachedProfile = doc.data();
+            sessionStorage.setItem("seller_profile_" + uid, JSON.stringify(_cachedProfile));
+          }
+        }).catch(() => {});
+        return _cachedProfile;
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fetch from Firestore
   try {
     const doc = await db.collection("users").doc(uid).get();
-    return doc.exists ? doc.data() : {};
+    const data = doc.exists ? doc.data() : {};
+    _cachedProfile = data;
+    _cachedProfileUid = uid;
+    try {
+      sessionStorage.setItem("seller_profile_" + uid, JSON.stringify(data));
+    } catch (e) {}
+    return data;
   } catch (error) {
     console.error("[PROFILE] Error loading seller profile:", error);
-    return {};
+    return _cachedProfile || {};
   }
+}
+
+function invalidateSellerProfileCache(uid) {
+  _cachedProfile = null;
+  _cachedProfileUid = null;
+  try {
+    if (uid) sessionStorage.removeItem("seller_profile_" + uid);
+  } catch (e) {}
 }
 
 async function downloadQuotationPdf(billNumber) {

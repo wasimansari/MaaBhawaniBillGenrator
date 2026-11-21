@@ -13,3 +13,12 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// Enable offline persistence for ultra-fast local reads (<5ms)
+try {
+  db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+    if (err.code !== "unimplemented" && err.code !== "failed-precondition") {
+      console.warn("[FIRESTORE] Offline persistence note:", err.code);
+    }
+  });
+} catch (e) {}
