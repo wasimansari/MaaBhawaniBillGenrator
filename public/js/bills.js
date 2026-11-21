@@ -714,20 +714,40 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
     const editBillId = sessionStorage.getItem("editBillId");
     let targetBillId = editBillId;
 
+    const now = new Date();
+    billPayload.createdAt = now;
+    billPayload.serverCreatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
     if (editBillId) {
-      billPayload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      billPayload.updatedAt = now;
       await db.collection("bills").doc(editBillId).set(billPayload, { merge: true });
       sessionStorage.removeItem("editBillId");
       sessionStorage.removeItem("editBillData");
     } else {
-      billPayload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       const docRef = await db.collection("bills").add(billPayload);
       targetBillId = docRef.id;
     }
 
+    // Immediately update caches so returning to the dashboard shows the new invoice instantly
     try {
-      sessionStorage.removeItem("dashboard_bills_" + user.uid);
-      dashboardBillsCache = [];
+      const savedDoc = {
+        id: targetBillId,
+        ...billPayload,
+        createdAt: now.toISOString(),
+        billDate: billPayload.billDate instanceof Date ? billPayload.billDate.toISOString() : billPayload.billDate
+      };
+      sessionStorage.setItem("view_bill_" + targetBillId, JSON.stringify(savedDoc));
+
+      const cacheKey = "dashboard_bills_" + user.uid;
+      let cachedList = [];
+      const cachedRaw = sessionStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        try { cachedList = JSON.parse(cachedRaw); } catch (e) {}
+      }
+      cachedList = cachedList.filter((b) => b.id !== targetBillId);
+      cachedList.unshift(savedDoc);
+      sessionStorage.setItem(cacheKey, JSON.stringify(cachedList));
+      dashboardBillsCache = cachedList;
     } catch (e) {}
 
     // Redirect to view-bill with download=true so user sees the preview AND gets automatic PDF download!
@@ -868,18 +888,9 @@ async function loadBillsDashboard({
 
   // 2. Fetch fresh snapshot from Firestore (fast local cache via IndexedDB)
   try {
-    let snapshot;
-    try {
-      snapshot = await db.collection("bills")
-        .where("userId", "==", user.uid)
-        .orderBy("createdAt", "desc")
-        .get();
-    } catch (orderErr) {
-      console.warn("[BILLS] Query with orderBy failed, querying with userId filter only:", orderErr);
-      snapshot = await db.collection("bills")
-        .where("userId", "==", user.uid)
-        .get();
-    }
+    const snapshot = await db.collection("bills")
+      .where("userId", "==", user.uid)
+      .get();
 
     const freshBills = [];
     snapshot.forEach((doc) => {

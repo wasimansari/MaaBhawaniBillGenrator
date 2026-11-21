@@ -530,6 +530,19 @@
       const loadingBills = document.getElementById("loadingBillsState");
       if (loadingBills) loadingBills.hidden = true;
     });
+
+    // When returning to dashboard from view-bill or if restored from browser cache (bfcache)
+    window.addEventListener("pageshow", async (event) => {
+      if (event.persisted) {
+        const user = await ensureAuthenticatedUser();
+        if (user) {
+          await loadBillsList(
+            document.getElementById("billsList"),
+            document.getElementById("emptyState")
+          );
+        }
+      }
+    });
   </script>
 </body>
 </html>
