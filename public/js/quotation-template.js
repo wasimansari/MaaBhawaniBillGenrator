@@ -66,6 +66,7 @@ function renderQuotationHTML(bill, profile) {
   html += '<div class="q-header">';
   html += '<div class="q-company">';
   html += `<h1 class="q-company-name">${escapeHtml(business.name)}</h1>`;
+  if (gstLine) html += `<p class="q-company-gstin">${gstLine}</p>`;
   html += `<p class="q-company-address">${escapeHtml(business.address)}</p>`;
   html += `<p class="q-company-contact">Mobile - (+91) ${escapeHtml(business.mobile)}${business.email ? ` | Email - ${escapeHtml(business.email)}` : ""}</p>`;
   if (business.tagline) html += `<p class="q-tagline">${escapeHtml(business.tagline)}</p>`;
@@ -145,7 +146,6 @@ function renderQuotationHTML(bill, profile) {
   html += '<p class="q-sig-title">Authorized Signature</p>';
   html += '</div></div></div>';
 
-  if (gstLine) html += `<p class="q-gstin">${gstLine}</p>`;
   html += '<p class="q-generated">This is a Computer Generated Invoice</p>';
   html += '</div>';
 

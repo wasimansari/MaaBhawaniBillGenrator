@@ -1,12 +1,12 @@
 const DEFAULT_CATALOG_ITEMS = [
-  { description: "MONITOR(24 INCH)", per: "pcs" },
-  { description: "KEYBOARD", per: "pcs" },
-  { description: "WIRELESS MOUSE", per: "pcs" },
-  { description: "UPS 600VA", per: "pcs" },
-  { description: "UPS 1 KVA", per: "pcs" },
-  { description: "CCTV CAMERA 4 MP", per: "pcs" },
-  { description: "CCTV CAMERA 2 MP", per: "pcs" },
-  { description: "SMPS 5 AMP", per: "pcs" }
+  { description: "MONITOR(24 INCH)", per: "pcs", rate: 9500 },
+  { description: "KEYBOARD", per: "pcs", rate: 550 },
+  { description: "WIRELESS MOUSE", per: "pcs", rate: 450 },
+  { description: "UPS 600VA", per: "pcs", rate: 2850 },
+  { description: "UPS 1 KVA", per: "pcs", rate: 4850 },
+  { description: "CCTV CAMERA 4 MP", per: "pcs", rate: 1850 },
+  { description: "CCTV CAMERA 2 MP", per: "pcs", rate: 1250 },
+  { description: "SMPS 5 AMP", per: "pcs", rate: 450 }
 ];
 
 let catalogItems = [];
@@ -218,10 +218,11 @@ async function loadCatalogItems(userId) {
     }
 
     catalogItems = items.map((it) => {
-      if (typeof it === "string") return { description: it, per: "pcs" };
+      if (typeof it === "string") return { description: it, per: "pcs", rate: 0 };
       return {
         description: it.description || "",
-        per: it.per || "pcs"
+        per: it.per || "pcs",
+        rate: Number(it.rate) || 0
       };
     }).filter((it) => it.description.trim() !== "");
 
@@ -280,11 +281,14 @@ function updateAllItemDropdowns() {
   });
 }
 
-async function addNewCatalogItem(itemName, unit = "pcs") {
+async function addNewCatalogItem(itemName, unit = "pcs", rate = 0) {
   const trimmed = String(itemName || "").trim();
   if (!trimmed) {
     throw new Error("Item name cannot be empty.");
   }
+
+  const numRate = Number(rate) || 0;
+  const strUnit = String(unit || "pcs").trim() || "pcs";
 
   // Check if item already exists (case-insensitive)
   const existing = catalogItems.find(
@@ -294,8 +298,40 @@ async function addNewCatalogItem(itemName, unit = "pcs") {
   let resultItem = existing;
 
   if (!existing) {
-    resultItem = { description: trimmed, per: unit || "pcs" };
+    resultItem = { description: trimmed, per: strUnit, rate: numRate };
     catalogItems.push(resultItem);
+  } else {
+    existing.per = strUnit;
+    if (numRate > 0) existing.rate = numRate;
+    resultItem = existing;
+  }
+
+  const user = auth.currentUser;
+  if (user) {
+    await db.collection("users").doc(user.uid).set({
+      additionalItems: catalogItems
+    }, { merge: true });
+  }
+
+  updateAllItemDropdowns();
+  return resultItem;
+}
+
+async function updateCatalogItem(oldDescription, updatedItem = {}) {
+  const trimmedOld = String(oldDescription || "").trim();
+  if (!trimmedOld) return;
+
+  const item = catalogItems.find((it) => it.description.toLowerCase() === trimmedOld.toLowerCase());
+  if (item) {
+    if (updatedItem.description != null && updatedItem.description.trim()) {
+      item.description = updatedItem.description.trim();
+    }
+    if (updatedItem.per != null) {
+      item.per = updatedItem.per.trim() || "pcs";
+    }
+    if (updatedItem.rate != null) {
+      item.rate = Number(updatedItem.rate) || 0;
+    }
 
     const user = auth.currentUser;
     if (user) {
@@ -303,19 +339,36 @@ async function addNewCatalogItem(itemName, unit = "pcs") {
         additionalItems: catalogItems
       }, { merge: true });
     }
+    updateAllItemDropdowns();
   }
+}
 
-  updateAllItemDropdowns();
-  return resultItem;
+async function deleteCatalogItem(description) {
+  const trimmed = String(description || "").trim();
+  if (!trimmed) return;
+
+  const idx = catalogItems.findIndex((it) => it.description.toLowerCase() === trimmed.toLowerCase());
+  if (idx !== -1) {
+    catalogItems.splice(idx, 1);
+    const user = auth.currentUser;
+    if (user) {
+      await db.collection("users").doc(user.uid).set({
+        additionalItems: catalogItems
+      }, { merge: true });
+    }
+    updateAllItemDropdowns();
+  }
 }
 
 function openAddItemModal(targetRow = null) {
   pendingRowForNewItem = targetRow;
   const modal = document.getElementById("addItemModal");
   const input = document.getElementById("newItemDescription");
+  const rateInput = document.getElementById("newItemDefaultRate");
   const msg = document.getElementById("addItemModalMessage");
   if (msg) msg.hidden = true;
   if (input) input.value = "";
+  if (rateInput) rateInput.value = "";
   if (modal) modal.hidden = false;
   if (input) setTimeout(() => input.focus(), 50);
 }
@@ -327,6 +380,21 @@ function closeAddItemModal() {
 }
 
 function createItemRow(initialData = {}, onRowChange = null) {
+  // If description is provided but rate is not, look up default rate and unit from catalog
+  let initialRate = initialData.rate;
+  let initialPer = initialData.per;
+  if (initialData.description) {
+    const matched = catalogItems.find((it) => it.description === initialData.description);
+    if (matched) {
+      if ((initialRate == null || initialRate === "" || initialRate === 0) && matched.rate > 0) {
+        initialRate = matched.rate;
+      }
+      if (!initialPer && matched.per) {
+        initialPer = matched.per;
+      }
+    }
+  }
+
   const row = document.createElement("tr");
   row.className = "item-row";
   row.innerHTML = `
@@ -334,8 +402,8 @@ function createItemRow(initialData = {}, onRowChange = null) {
       <select class="item-desc" required></select>
     </td>
     <td><input type="number" class="item-qty" min="0.01" step="0.01" value="${initialData.qty != null ? initialData.qty : 1}" required></td>
-    <td><input type="number" class="item-rate" min="0" step="0.01" value="${initialData.rate != null && initialData.rate !== 0 ? initialData.rate : ''}" placeholder="0.00" required></td>
-    <td><input type="text" class="item-per" value="${initialData.per || 'pcs'}" style="width:60px"></td>
+    <td><input type="number" class="item-rate" min="0" step="0.01" value="${initialRate != null && initialRate !== '' ? initialRate : ''}" placeholder="0.00" required></td>
+    <td><input type="text" class="item-per" value="${initialPer || 'pcs'}" style="width:60px"></td>
     <td class="item-amount">₹ 0.00</td>
     <td><button type="button" class="btn-icon remove-item" title="Remove">×</button></td>
   `;
@@ -350,17 +418,24 @@ function createItemRow(initialData = {}, onRowChange = null) {
       return;
     }
 
-    // If item selected, look up default unit and focus the rate box for manual amount entry
+    // Automatically fill unit and price when item is selected
     const chosen = catalogItems.find((it) => it.description === select.value);
-    if (chosen && chosen.per) {
-      row.querySelector(".item-per").value = chosen.per;
+    if (chosen) {
+      if (chosen.per) {
+        row.querySelector(".item-per").value = chosen.per;
+      }
+      const rateInput = row.querySelector(".item-rate");
+      if (rateInput) {
+        // Automatically populate price in text box if set in catalog
+        if (chosen.rate != null && chosen.rate > 0) {
+          rateInput.value = chosen.rate;
+        } else if (!rateInput.value) {
+          rateInput.value = "";
+        }
+      }
     }
 
-    const rateInput = row.querySelector(".item-rate");
-    if (rateInput && !rateInput.value) {
-      rateInput.focus();
-    }
-
+    // Recalculate row amount and form totals immediately
     if (onRowChange) onRowChange(row);
   });
 
@@ -969,16 +1044,24 @@ async function downloadQuotationPdf(billNumber) {
       } catch (taintErr) {
         console.warn("[PDF] Canvas tainted by external image, re-capturing with external images hidden:", taintErr);
         // Re-capture skipping any non-data images to prevent tainted canvas error
-        const cleanCanvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-          logging: false,
-          ignoreElements: (el) => el.tagName === "IMG" && el.src && !el.src.startsWith("data:")
-        });
-        renderedHeight = (cleanCanvas.height * a4Width) / cleanCanvas.width;
-        imgData = cleanCanvas.toDataURL("image/png", 1.0);
+        try {
+          const cleanCanvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#ffffff",
+            logging: false,
+            ignoreElements: (el) => el.tagName === "IMG" && el.src && !el.src.startsWith("data:")
+          });
+          renderedHeight = (cleanCanvas.height * a4Width) / cleanCanvas.width;
+          imgData = cleanCanvas.toDataURL("image/png", 1.0);
+        } catch (innerTaintErr) {
+          console.warn("[PDF] Re-capture also blocked by canvas security, opening Print dialog directly:", innerTaintErr);
+          hideActionLoading();
+          if (btn) setLoading(btn, false);
+          window.print();
+          return;
+        }
       }
 
       // If the invoice fits within standard 1 page (or slight overflow up to ~330mm due to padding/margins),
@@ -1088,26 +1171,36 @@ async function editBill(billId, billData) {
   window.location.href = "create-bill.html?edit=true";
 }
 
-const BULK_SAMPLE_CUSTOMERS = [
-  { name: "Rahul Sharma", city: "New Delhi", state: "Delhi", mobile: "9810123456" },
-  { name: "Pooja Verma", city: "Noida", state: "Uttar Pradesh", mobile: "9820234567" },
-  { name: "NPS Hakim Miya Tola", city: "Siwan", state: "Bihar", mobile: "9830345678" },
-  { name: "Techtronics Solutions", city: "Gurugram", state: "Haryana", mobile: "9840456789" },
-  { name: "Galaxy Infotech", city: "Patna", state: "Bihar", mobile: "9850567890" },
-  { name: "Ramesh Trading Co", city: "Jaipur", state: "Rajasthan", mobile: "9860678901" },
-  { name: "Global Computers", city: "Lucknow", state: "Uttar Pradesh", mobile: "9870789012" },
-  { name: "Kavita Electronics", city: "Kanpur", state: "Uttar Pradesh", mobile: "9880890123" },
-  { name: "Aman Hardware & Tools", city: "Varanasi", state: "Uttar Pradesh", mobile: "9890901234" },
-  { name: "Sunil Stationery & Supplies", city: "Gaya", state: "Bihar", mobile: "9812345678" },
-  { name: "Apex Technologies", city: "Chandigarh", state: "Punjab", mobile: "9823456789" },
-  { name: "Shree Ganesh Enterprises", city: "Bhopal", state: "Madhya Pradesh", mobile: "9834567890" }
-];
-
-async function bulkGenerateInvoices(count = 500, onProgress = null) {
+async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
   const user = auth.currentUser;
   if (!user) throw new Error("User must be logged in to generate bills.");
 
-  const targetCount = Math.max(1, Math.min(1000, parseInt(count, 10) || 500));
+  let count = 500;
+  let customItems = null;
+  let cgstPct = 5;
+  let sgstPct = 5;
+  let onProgress = null;
+  let customerName = "";
+  let customerAddress = "";
+  let customerMobile = "";
+  let baseBillDate = new Date().toISOString().split("T")[0];
+
+  if (typeof options === "number" || typeof options === "string") {
+    count = parseInt(options, 10) || 500;
+    onProgress = legacyProgress;
+  } else if (typeof options === "object" && options !== null) {
+    count = parseInt(options.count, 10) || 500;
+    customItems = Array.isArray(options.customItems) && options.customItems.length > 0 ? options.customItems : null;
+    cgstPct = options.cgstPercent != null ? Number(options.cgstPercent) : 5;
+    sgstPct = options.sgstPercent != null ? Number(options.sgstPercent) : 5;
+    customerName = options.customerName != null ? String(options.customerName).trim() : "";
+    customerAddress = options.customerAddress != null ? String(options.customerAddress).trim() : "";
+    customerMobile = options.customerMobile != null ? String(options.customerMobile).trim() : "";
+    if (options.billDate) baseBillDate = String(options.billDate).trim();
+    onProgress = options.onProgress || legacyProgress;
+  }
+
+  const targetCount = Math.max(1, Math.min(1000, count));
   const counterRef = db.collection("counters").doc(user.uid);
 
   // 1. Atomically get current counter
@@ -1136,6 +1229,35 @@ async function bulkGenerateInvoices(count = 500, onProgress = null) {
   const itemsCatalog = (catalogItems && catalogItems.length > 0) ? catalogItems : DEFAULT_CATALOG_ITEMS;
   let completed = 0;
 
+  // Pre-calculate fixed items & totals if user configured custom items (e.g. 5 items with 5% CGST/SGST)
+  let fixedBillItems = null;
+  let fixedSubtotal = 0;
+  let fixedCgst = 0;
+  let fixedSgst = 0;
+  let fixedGrandTotal = 0;
+  let fixedWords = "";
+
+  if (customItems) {
+    fixedBillItems = customItems.map((it) => {
+      const q = Number(it.qty) || 1;
+      const r = Number(it.rate) || 0;
+      return {
+        description: String(it.description || "").trim(),
+        qty: q,
+        rate: r,
+        per: String(it.per || "pcs").trim(),
+        amount: Math.round(q * r * 100) / 100
+      };
+    });
+
+    const totals = calculateQuotationTotals(fixedBillItems, cgstPct, sgstPct);
+    fixedSubtotal = totals.subtotal;
+    fixedCgst = totals.cgst;
+    fixedSgst = totals.sgst;
+    fixedGrandTotal = totals.grandTotal;
+    fixedWords = totals.amountInWords;
+  }
+
   // 3. Commit in chunks of 100 documents per batch (safe within Firestore 500-batch limit)
   for (let batchStart = 0; batchStart < targetCount; batchStart += BATCH_SIZE) {
     const batch = db.batch();
@@ -1143,52 +1265,63 @@ async function bulkGenerateInvoices(count = 500, onProgress = null) {
 
     for (let i = batchStart; i < batchEnd; i++) {
       const serialNum = startNum + i;
-      const cust = BULK_SAMPLE_CUSTOMERS[i % BULK_SAMPLE_CUSTOMERS.length];
-      const numItems = (i % 3) + 1;
-      const items = [];
 
-      for (let j = 0; j < numItems; j++) {
-        const catItem = itemsCatalog[(i + j) % itemsCatalog.length];
-        const qty = ((i + j) % 4) + 1;
-        const baseRate = 350 + (((i * 47 + j * 29) % 35) * 200);
-        const amount = qty * baseRate;
-        items.push({
-          description: catItem.description,
-          qty: qty,
-          per: catItem.per || "pcs",
-          rate: baseRate,
-          amount: amount
-        });
+      let items = [];
+      let subtotal = 0;
+      let cgst = 0;
+      let sgst = 0;
+      let grandTotal = 0;
+      let amountInWords = "";
+
+      if (fixedBillItems) {
+        // Apply identical items & amounts configured by user
+        items = fixedBillItems.map((it) => ({ ...it }));
+        subtotal = fixedSubtotal;
+        cgst = fixedCgst;
+        sgst = fixedSgst;
+        grandTotal = fixedGrandTotal;
+        amountInWords = fixedWords;
+      } else {
+        // Fallback: items from catalog
+        const numItems = (i % 3) + 1;
+        for (let j = 0; j < numItems; j++) {
+          const catItem = itemsCatalog[(i + j) % itemsCatalog.length];
+          const qty = ((i + j) % 4) + 1;
+          const baseRate = 350 + (((i * 47 + j * 29) % 35) * 200);
+          const amount = qty * baseRate;
+          items.push({
+            description: catItem.description,
+            qty: qty,
+            per: catItem.per || "pcs",
+            rate: baseRate,
+            amount: amount
+          });
+        }
+        subtotal = items.reduce((sum, it) => sum + it.amount, 0);
+        cgst = Math.round(subtotal * (cgstPct / 100) * 100) / 100;
+        sgst = Math.round(subtotal * (sgstPct / 100) * 100) / 100;
+        grandTotal = Math.round((subtotal + cgst + sgst) * 100) / 100;
+        amountInWords = numberToWordsIndian(grandTotal);
       }
-
-      const subtotal = items.reduce((sum, it) => sum + it.amount, 0);
-      const cgst = Math.round(subtotal * 0.09 * 100) / 100;
-      const sgst = Math.round(subtotal * 0.09 * 100) / 100;
-      const grandTotal = Math.round((subtotal + cgst + sgst) * 100) / 100;
-
-      // Distribute dates realistically across the past 90 days
-      const dayOffset = (targetCount - i) * (90 / targetCount);
-      const billDateObj = new Date(Date.now() - dayOffset * 86400000);
-      const billDateStr = billDateObj.toISOString().split("T")[0];
 
       const billDocRef = db.collection("bills").doc();
       const billData = {
         userId: user.uid,
         documentType: "bill",
         billNumber: formatSerialNumber("INV", serialNum),
-        customerName: cust.name,
-        customerAddress: `${cust.city}, ${cust.state}`,
-        customerMobile: cust.mobile,
-        billDate: billDateStr,
-        createdAt: billDateObj,
+        customerName: customerName,
+        customerAddress: customerAddress,
+        customerMobile: customerMobile,
+        billDate: baseBillDate,
+        createdAt: new Date(),
         items: items,
         subtotal: subtotal,
         cgst: cgst,
         sgst: sgst,
         grandTotal: grandTotal,
-        amountInWords: numberToWordsIndian(grandTotal),
-        cgstPercent: 9,
-        sgstPercent: 9
+        amountInWords: amountInWords,
+        cgstPercent: cgstPct,
+        sgstPercent: sgstPct
       };
 
       batch.set(billDocRef, billData);
@@ -1208,6 +1341,7 @@ async function bulkGenerateInvoices(count = 500, onProgress = null) {
     success: true,
     count: targetCount,
     startSerial: formatSerialNumber("INV", startNum),
-    endSerial: formatSerialNumber("INV", endNum)
+    endSerial: formatSerialNumber("INV", endNum),
+    grandTotal: fixedBillItems ? fixedGrandTotal : null
   };
 }

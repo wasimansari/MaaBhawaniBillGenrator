@@ -75,22 +75,110 @@
 
   <!-- Bulk Generation Modal -->
   <div id="bulkModal" class="modal-overlay" hidden>
-    <div class="modal-box">
+    <div class="modal-box modal-box-large">
       <div class="modal-header">
         <h3>⚡ Bulk Generate Invoices</h3>
         <button type="button" class="modal-close" id="closeBulkModalBtn">&times;</button>
       </div>
-      <div class="modal-body">
-        <p style="font-size: 0.95rem; margin-bottom: 1rem; color: var(--text);">
-          Generate high-volume invoices in Firestore using atomic batch writes. No storage issues or rate limits.
+      <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+        <p style="font-size: 0.95rem; margin-bottom: 1.25rem; color: var(--text);">
+          Configure the items and tax rates below. All generated invoices will carry these exact items, amounts, and sequential invoice numbers.
         </p>
-        
-        <div class="form-group" style="margin-bottom: 1rem;">
-          <label for="bulkCountInput" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">Number of Invoices to Generate</label>
-          <input type="number" id="bulkCountInput" value="500" min="1" max="1000" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
-          <small class="muted" style="display:block; margin-top: 0.35rem;">Recommended: 500 bills (Takes approx ~2-3 seconds, ~270 KB storage = 0.026% of 1 GB free limit).</small>
+
+        <!-- Generation Settings (Count & Taxes) -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+          <div class="form-group">
+            <label for="bulkCountInput" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">Number of Invoices to Generate</label>
+            <input type="number" id="bulkCountInput" value="500" min="1" max="1000" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+            <small class="muted" style="display:block; margin-top: 0.25rem;">Recommended: 500 bills (~2-3 sec, ~270 KB storage = 0.026% of 1 GB free limit).</small>
+          </div>
+          <div class="form-group">
+            <label for="bulkCgstPercent" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">CGST (%)</label>
+            <input type="number" id="bulkCgstPercent" value="5" min="0" step="0.01" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+          </div>
+          <div class="form-group">
+            <label for="bulkSgstPercent" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">SGST (%)</label>
+            <input type="number" id="bulkSgstPercent" value="5" min="0" step="0.01" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+          </div>
         </div>
 
+        <!-- Customer Information (Optional) -->
+        <div style="background: var(--surface-2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.25rem;">
+          <strong style="display: block; margin-bottom: 0.35rem; font-size: 0.95rem;">Customer Information (Optional — applied to all generated bills)</strong>
+          <p class="muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Leave blank if not needed, or enter customer details to show on every invoice:</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <div class="form-group">
+              <label for="bulkCustomerName" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Name</label>
+              <input type="text" id="bulkCustomerName" placeholder="e.g. Cash, Walk-in, or Client Name" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+            </div>
+            <div class="form-group">
+              <label for="bulkCustomerMobile" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Mobile (optional)</label>
+              <input type="tel" id="bulkCustomerMobile" maxlength="10" placeholder="10-digit mobile number" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="form-group">
+              <label for="bulkCustomerAddress" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Address (optional)</label>
+              <input type="text" id="bulkCustomerAddress" placeholder="Customer address / city" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+            </div>
+            <div class="form-group">
+              <label for="bulkBillDate" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Invoice Date</label>
+              <input type="date" id="bulkBillDate" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div style="margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+            <div>
+              <strong style="font-size: 1rem;">Select Items & Amounts (Applied to All Bills)</strong>
+              <p class="muted" style="font-size: 0.85rem; margin: 0.15rem 0 0;">Select items from dropdown, adjust quantity, and fill rate manually:</p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="bulkAddItemRowBtn">+ Add Item Row</button>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="items-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th style="min-width: 240px;">Item Description</th>
+                  <th style="width: 90px;">Qty</th>
+                  <th style="width: 120px;">Rate (₹)</th>
+                  <th style="width: 80px;">Per</th>
+                  <th style="width: 130px;">Amount</th>
+                  <th style="width: 45px;"></th>
+                </tr>
+              </thead>
+              <tbody id="bulkItemsBody">
+                <!-- Dynamic Item Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Live Totals Box -->
+        <div class="totals-preview" style="background: var(--surface-2); padding: 1.15rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+            <span>Subtotal:</span>
+            <strong id="bulkSubtotalDisplay">₹ 0.00</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+            <span>CGST (<span id="bulkCgstLabel">5</span>%):</span>
+            <span id="bulkCgstDisplay">₹ 0.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+            <span>SGST (<span id="bulkSgstLabel">5</span>%):</span>
+            <span id="bulkSgstDisplay">₹ 0.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-top: 0.65rem; border-top: 1px solid var(--border); font-size: 1.15rem;">
+            <strong>Grand Total Per Bill:</strong>
+            <strong id="bulkGrandTotalDisplay" style="color: var(--primary);">₹ 0.00</strong>
+          </div>
+          <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem; line-height: 1.4;" id="bulkAmountWordsPreview"></p>
+        </div>
+
+        <!-- Progress Area -->
         <div id="bulkProgressArea" class="progress-container" hidden>
           <div class="progress-track">
             <div class="progress-fill" id="bulkProgressFill"></div>
@@ -107,6 +195,42 @@
         <button type="button" class="btn btn-secondary" id="cancelBulkBtn">Cancel</button>
         <button type="button" class="btn btn-primary" id="startBulkBtn">Start Generation (500 Bills)</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Add New Item Modal (reusable for dashboard) -->
+  <div id="addItemModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add New Item to Catalog</h3>
+        <button type="button" class="modal-close" id="closeAddItemModal">&times;</button>
+      </div>
+      <form id="addNewItemForm">
+        <div class="modal-body">
+          <p class="muted" style="margin-bottom: 1rem; font-size: 0.9rem;">
+            Added item will immediately appear in the dropdown for all rows and be saved in your catalog.
+          </p>
+          <div class="form-group">
+            <label for="newItemDescription">Item Name / Description *</label>
+            <input type="text" id="newItemDescription" placeholder="e.g. PRINTER HP 1020, WIRELESS KEYBOARD" required>
+          </div>
+          <div class="form-row" style="margin-bottom: 0;">
+            <div class="form-group">
+              <label for="newItemDefaultPer">Default Unit</label>
+              <input type="text" id="newItemDefaultPer" placeholder="pcs" value="pcs">
+            </div>
+            <div class="form-group">
+              <label for="newItemDefaultRate">Default Price / Rate (₹)</label>
+              <input type="number" id="newItemDefaultRate" placeholder="0.00" min="0" step="0.01">
+            </div>
+          </div>
+          <div id="addItemModalMessage" class="message" hidden style="margin-top: 0.75rem;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelAddItemModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveNewItemBtn">Add to Dropdown</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -128,11 +252,137 @@
     const cancelBulkBtn = document.getElementById("cancelBulkBtn");
     const startBulkBtn = document.getElementById("startBulkBtn");
     const bulkCountInput = document.getElementById("bulkCountInput");
+    const bulkCgstInput = document.getElementById("bulkCgstPercent");
+    const bulkSgstInput = document.getElementById("bulkSgstPercent");
+    const bulkCgstLabel = document.getElementById("bulkCgstLabel");
+    const bulkSgstLabel = document.getElementById("bulkSgstLabel");
+    const bulkCustomerName = document.getElementById("bulkCustomerName");
+    const bulkCustomerMobile = document.getElementById("bulkCustomerMobile");
+    const bulkCustomerAddress = document.getElementById("bulkCustomerAddress");
+    const bulkBillDate = document.getElementById("bulkBillDate");
+    const bulkItemsBody = document.getElementById("bulkItemsBody");
+    const bulkAddItemRowBtn = document.getElementById("bulkAddItemRowBtn");
+
+    const bulkSubtotalDisplay = document.getElementById("bulkSubtotalDisplay");
+    const bulkCgstDisplay = document.getElementById("bulkCgstDisplay");
+    const bulkSgstDisplay = document.getElementById("bulkSgstDisplay");
+    const bulkGrandTotalDisplay = document.getElementById("bulkGrandTotalDisplay");
+    const bulkAmountWordsPreview = document.getElementById("bulkAmountWordsPreview");
+
     const bulkProgressArea = document.getElementById("bulkProgressArea");
     const bulkProgressFill = document.getElementById("bulkProgressFill");
     const bulkProgressStatus = document.getElementById("bulkProgressStatus");
     const bulkProgressPercent = document.getElementById("bulkProgressPercent");
     const bulkMessage = document.getElementById("bulkMessage");
+
+    // Add New Item modal elements
+    const addItemModal = document.getElementById("addItemModal");
+    const closeAddItemModalBtn = document.getElementById("closeAddItemModal");
+    const cancelAddItemModalBtn = document.getElementById("cancelAddItemModal");
+    const addNewItemForm = document.getElementById("addNewItemForm");
+    const newItemDescInput = document.getElementById("newItemDescription");
+    const newItemPerInput = document.getElementById("newItemDefaultPer");
+    const addItemModalMessage = document.getElementById("addItemModalMessage");
+
+    closeAddItemModalBtn.addEventListener("click", closeAddItemModal);
+    cancelAddItemModalBtn.addEventListener("click", closeAddItemModal);
+
+    addNewItemForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const itemName = newItemDescInput.value.trim();
+      const itemPer = newItemPerInput.value.trim() || "pcs";
+      const rateInputEl = document.getElementById("newItemDefaultRate");
+      const itemRate = Number(rateInputEl ? rateInputEl.value : 0) || 0;
+      if (!itemName) return;
+
+      const saveBtn = document.getElementById("saveNewItemBtn");
+      setLoading(saveBtn, true);
+
+      try {
+        const added = await addNewCatalogItem(itemName, itemPer, itemRate);
+
+        if (pendingRowForNewItem) {
+          const select = pendingRowForNewItem.querySelector(".item-desc");
+          if (select) {
+            select.value = added.description;
+            const perInput = pendingRowForNewItem.querySelector(".item-per");
+            if (perInput && added.per) perInput.value = added.per;
+            const rateInput = pendingRowForNewItem.querySelector(".item-rate");
+            if (rateInput && added.rate) rateInput.value = added.rate;
+            refreshBulkRowAmount(pendingRowForNewItem);
+          }
+        }
+        closeAddItemModal();
+      } catch (err) {
+        showMessage(addItemModalMessage, err.message, "error");
+      } finally {
+        setLoading(saveBtn, false);
+      }
+    });
+
+    function getBulkItemsFromTable() {
+      return Array.from(bulkItemsBody.querySelectorAll(".item-row")).map((row) => ({
+        description: (row.querySelector(".item-desc").value || "").trim(),
+        qty: Number(row.querySelector(".item-qty").value) || 0,
+        rate: Number(row.querySelector(".item-rate").value) || 0,
+        per: (row.querySelector(".item-per").value || "pcs").trim()
+      }));
+    }
+
+    function refreshBulkTotals() {
+      const items = getBulkItemsFromTable();
+      const cgstVal = Number(bulkCgstInput.value) || 0;
+      const sgstVal = Number(bulkSgstInput.value) || 0;
+
+      bulkCgstLabel.textContent = cgstVal;
+      bulkSgstLabel.textContent = sgstVal;
+
+      const totals = calculateQuotationTotals(items, cgstVal, sgstVal);
+      bulkSubtotalDisplay.textContent = formatCurrency(totals.subtotal);
+      bulkCgstDisplay.textContent = formatCurrency(totals.cgst);
+      bulkSgstDisplay.textContent = formatCurrency(totals.sgst);
+      bulkGrandTotalDisplay.textContent = formatCurrency(totals.grandTotal);
+      bulkAmountWordsPreview.textContent = totals.amountInWords;
+    }
+
+    function refreshBulkRowAmount(row) {
+      const qty = row.querySelector(".item-qty").value;
+      const rate = row.querySelector(".item-rate").value;
+      row.querySelector(".item-amount").textContent = formatCurrency(calculateLineTotal(qty, rate));
+      refreshBulkTotals();
+    }
+
+    function bindBulkRowEvents(row) {
+      row.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("input", () => refreshBulkRowAmount(row));
+      });
+      const removeBtn = row.querySelector(".remove-item");
+      if (removeBtn) {
+        removeBtn.addEventListener("click", () => {
+          if (bulkItemsBody.querySelectorAll(".item-row").length > 1) {
+            row.remove();
+            refreshBulkTotals();
+          } else {
+            alert("At least one item row is required.");
+          }
+        });
+      }
+    }
+
+    function addBulkItemRow(initialData = {}) {
+      const row = createItemRow(initialData, (r) => refreshBulkRowAmount(r));
+      bulkItemsBody.appendChild(row);
+      bindBulkRowEvents(row);
+      refreshBulkRowAmount(row);
+      return row;
+    }
+
+    bulkAddItemRowBtn.addEventListener("click", () => {
+      addBulkItemRow();
+    });
+
+    bulkCgstInput.addEventListener("input", refreshBulkTotals);
+    bulkSgstInput.addEventListener("input", refreshBulkTotals);
 
     openBulkModalBtn.addEventListener("click", () => {
       bulkModal.hidden = false;
@@ -141,6 +391,23 @@
       startBulkBtn.disabled = false;
       bulkCountInput.disabled = false;
       bulkProgressFill.style.width = "0%";
+
+      if (bulkBillDate && !bulkBillDate.value) {
+        bulkBillDate.value = new Date().toISOString().split("T")[0];
+      }
+
+      // If no items in table yet, populate with initial rows (e.g. 2-3 default rows)
+      if (bulkItemsBody.querySelectorAll(".item-row").length === 0) {
+        const defaultItems = catalogItems.length > 0 ? catalogItems : DEFAULT_CATALOG_ITEMS;
+        if (defaultItems.length > 0) {
+          addBulkItemRow({ description: defaultItems[0].description, qty: 1, rate: 500, per: defaultItems[0].per || "pcs" });
+        }
+        if (defaultItems.length > 1) {
+          addBulkItemRow({ description: defaultItems[1].description, qty: 1, rate: 850, per: defaultItems[1].per || "pcs" });
+        }
+      } else {
+        refreshBulkTotals();
+      }
     });
 
     function closeBulkModal() {
@@ -164,6 +431,31 @@
         return;
       }
 
+      const items = getBulkItemsFromTable();
+      if (!items.length) {
+        alert("Please add at least one item row.");
+        return;
+      }
+
+      // Validate that all items have description and rate > 0
+      for (let i = 0; i < items.length; i++) {
+        if (!items[i].description) {
+          alert(`Please select an item in row #${i + 1}.`);
+          return;
+        }
+        if (items[i].rate <= 0) {
+          alert(`Please enter an amount/rate greater than 0 for "${items[i].description}".`);
+          return;
+        }
+      }
+
+      const cgstPercent = Number(bulkCgstInput.value) || 0;
+      const sgstPercent = Number(bulkSgstInput.value) || 0;
+      const customerName = bulkCustomerName ? bulkCustomerName.value.trim() : "";
+      const customerMobile = bulkCustomerMobile ? bulkCustomerMobile.value.trim() : "";
+      const customerAddress = bulkCustomerAddress ? bulkCustomerAddress.value.trim() : "";
+      const billDate = (bulkBillDate && bulkBillDate.value) ? bulkBillDate.value : new Date().toISOString().split("T")[0];
+
       startBulkBtn.disabled = true;
       cancelBulkBtn.disabled = true;
       closeBulkModalBtn.disabled = true;
@@ -174,15 +466,25 @@
       setLoading(startBulkBtn, true, "Generating...");
 
       try {
-        const result = await bulkGenerateInvoices(count, (completed, total, pct) => {
-          bulkProgressFill.style.width = `${pct}%`;
-          bulkProgressPercent.textContent = `${pct}%`;
-          bulkProgressStatus.textContent = `Writing batch: ${completed} of ${total} bills committed...`;
+        const result = await bulkGenerateInvoices({
+          count: count,
+          customItems: items,
+          cgstPercent: cgstPercent,
+          sgstPercent: sgstPercent,
+          customerName: customerName,
+          customerMobile: customerMobile,
+          customerAddress: customerAddress,
+          billDate: billDate,
+          onProgress: (completed, total, pct) => {
+            bulkProgressFill.style.width = `${pct}%`;
+            bulkProgressPercent.textContent = `${pct}%`;
+            bulkProgressStatus.textContent = `Writing batch: ${completed} of ${total} bills committed...`;
+          }
         });
 
         bulkProgressStatus.textContent = "All bills generated successfully!";
         bulkMessage.className = "message message-success";
-        bulkMessage.textContent = `Successfully generated ${result.count} bills (${result.startSerial} to ${result.endSerial})!`;
+        bulkMessage.textContent = `Successfully generated ${result.count} bills (${result.startSerial} to ${result.endSerial}) with your selected items!`;
         bulkMessage.hidden = false;
 
         setTimeout(async () => {
@@ -190,7 +492,7 @@
           startBulkBtn.disabled = false;
           cancelBulkBtn.disabled = false;
           closeBulkModalBtn.disabled = false;
-          setLoading(startBulkBtn, false, "Start Generation");
+          setLoading(startBulkBtn, false, `Start Generation (${count} Bills)`);
           // Reload dashboard
           const loadingBills = document.getElementById("loadingBillsState");
           if (loadingBills) loadingBills.hidden = false;
@@ -205,7 +507,7 @@
         startBulkBtn.disabled = false;
         cancelBulkBtn.disabled = false;
         closeBulkModalBtn.disabled = false;
-        setLoading(startBulkBtn, false, "Start Generation");
+        setLoading(startBulkBtn, false, `Start Generation (${count} Bills)`);
       }
     });
 

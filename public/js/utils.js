@@ -116,18 +116,19 @@ function getSignatureUrl() {
 }
 
 function getBusinessFromProfile(profile) {
-  const business = profile.business || {};
+  const p = profile || {};
+  const business = p.business || {};
   return {
-    name: business.name || profile.name || "Your Business Name",
-    address: business.address || profile.address || "",
-    mobile: business.mobile || profile.mobile || "",
-    email: business.email || profile.email || "",
-    gstin: business.gstin || "",
-    stateCode: business.stateCode || "",
-    stateName: business.stateName || "",
-    tagline: business.tagline || "",
-    bankName: business.bankName || "",
-    accountNo: business.accountNo || "",
-    ifsc: business.ifsc || ""
+    name: business.name || p.name || "Maa Bhawani Enterprises",
+    address: business.address || "Motipur, Muzaffarpur, Bihar, 843111.",
+    mobile: business.mobile || "8789703832",
+    email: business.email || "yadavwanshigroupofcompany@gmail.com",
+    gstin: business.gstin || "10IXRPD8555F1Z9",
+    stateCode: business.stateCode || "10",
+    stateName: business.stateName || "Bihar",
+    tagline: business.tagline || "Government Contractor & Order Supplier.",
+    bankName: business.bankName || "Uttar Bihar Gramin Bank, Fulwariya",
+    accountNo: business.accountNo || "1080851130010536",
+    ifsc: business.ifsc || "CBIN0R10001"
   };
 }

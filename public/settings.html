@@ -72,22 +72,39 @@
           </div>
         </div>
 
-        <h3 style="margin-top: 1.5rem;">Additional item price list</h3>
-        <p class="muted" style="margin-bottom: 0.75rem;">Saved items appear at the bottom of every quotation and can be quick-added when creating bills.</p>
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Rate (₹)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="catalogBody"></tbody>
-        </table>
-        <button type="button" class="btn btn-secondary" id="addCatalogRow">+ Add catalog item</button>
+        <!-- Item Details & Master Price List -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 2rem; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h3 style="margin: 0; display: inline-flex; align-items: center; gap: 0.5rem;">
+              Item Details & Master Price List
+              <span id="catalogCountBadge" class="badge" style="font-size: 0.8rem; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px;">0 items</span>
+            </h3>
+            <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;">
+              Set item names, default units (per), and prices here. When creating bills, selecting an item automatically fills its price and unit.
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="catalogSearchInput" placeholder="🔍 Search item..." style="padding: 0.45rem 0.75rem; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); width: 170px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="addCatalogRow">+ Add Item</button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="items-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th style="min-width: 240px;">Item Description / Name</th>
+                <th style="width: 90px;">Unit (Per)</th>
+                <th style="width: 130px;">Price / Rate (₹)</th>
+                <th style="width: 150px; text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="catalogBody"></tbody>
+          </table>
+        </div>
 
         <div id="message" class="message" hidden style="margin-top: 1rem;"></div>
-        <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top: 1.5rem; width: auto;">Save settings</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top: 1.5rem; width: auto;">Save All Settings</button>
       </form>
     </div>
   </div>
@@ -106,7 +123,11 @@
     const submitBtn = document.getElementById("submitBtn");
 
     document.getElementById("addCatalogRow").addEventListener("click", () => {
-      document.getElementById("catalogBody").appendChild(createCatalogRow());
+      const row = createCatalogRow();
+      document.getElementById("catalogBody").appendChild(row);
+      updateCatalogCount();
+      const descInput = row.querySelector(".cat-desc");
+      if (descInput) descInput.focus();
     });
 
     requireAuth().then((user) => loadSettingsForm(user.uid));

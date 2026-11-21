@@ -13,35 +13,115 @@ const DEFAULT_BUSINESS = {
 };
 
 const DEFAULT_ADDITIONAL_ITEMS = [
-  { description: "MONITOR(24 INCH)", rate: 9500 },
-  { description: "KEYBOARD", rate: 550 },
-  { description: "WIRELESS MOUSE", rate: 450 },
-  { description: "UPS 600VA", rate: 2850 },
-  { description: "UPS 1 KVA", rate: 4850 },
-  { description: "CCTV CAMERA 4 MP", rate: 1850 },
-  { description: "CCTV CAMERA 2 MP", rate: 1250 },
-  { description: "SMPS 5 AMP", rate: 450 }
+  { description: "MONITOR(24 INCH)", per: "pcs", rate: 9500 },
+  { description: "KEYBOARD", per: "pcs", rate: 550 },
+  { description: "WIRELESS MOUSE", per: "pcs", rate: 450 },
+  { description: "UPS 600VA", per: "pcs", rate: 2850 },
+  { description: "UPS 1 KVA", per: "pcs", rate: 4850 },
+  { description: "CCTV CAMERA 4 MP", per: "pcs", rate: 1850 },
+  { description: "CCTV CAMERA 2 MP", per: "pcs", rate: 1250 },
+  { description: "SMPS 5 AMP", per: "pcs", rate: 450 }
 ];
+
+function updateCatalogCount() {
+  const badge = document.getElementById("catalogCountBadge");
+  if (!badge) return;
+  const count = document.querySelectorAll(".catalog-row").length;
+  badge.textContent = `${count} ${count === 1 ? 'item' : 'items'}`;
+}
 
 function createCatalogRow(item = {}) {
   const row = document.createElement("tr");
   row.className = "catalog-row";
+  const descVal = escapeHtml(item.description || "");
+  const perVal = escapeHtml(item.per || "pcs");
+  const rateVal = item.rate != null ? item.rate : 0;
+
   row.innerHTML = `
-    <td><input type="text" class="cat-desc" placeholder="Item name"></td>
-    <td><input type="number" class="cat-rate" min="0" step="0.01" value="0"></td>
-    <td><button type="button" class="btn-icon remove-catalog" title="Remove">×</button></td>
+    <td><input type="text" class="cat-desc" placeholder="Item name / description" value="${descVal}" required style="width: 100%;"></td>
+    <td><input type="text" class="cat-per" placeholder="pcs" value="${perVal}" style="width: 80px;"></td>
+    <td><input type="number" class="cat-rate" min="0" step="0.01" value="${rateVal}" placeholder="0.00" style="width: 120px;"></td>
+    <td style="white-space: nowrap; text-align: right;">
+      <button type="button" class="btn btn-sm btn-secondary update-catalog-btn" title="Update and save this item">Update</button>
+      <button type="button" class="btn-icon remove-catalog" title="Delete item" style="margin-left: 6px;">✕</button>
+    </td>
   `;
-  row.querySelector(".cat-desc").value = item.description || "";
-  row.querySelector(".cat-rate").value = item.rate || 0;
-  row.querySelector(".remove-catalog").addEventListener("click", () => {
-    if (document.querySelectorAll(".catalog-row").length > 1) row.remove();
+
+  const descInput = row.querySelector(".cat-desc");
+  const perInput = row.querySelector(".cat-per");
+  const rateInput = row.querySelector(".cat-rate");
+  const updateBtn = row.querySelector(".update-catalog-btn");
+  const removeBtn = row.querySelector(".remove-catalog");
+
+  // Single Item Update Button Handler
+  updateBtn.addEventListener("click", async () => {
+    const newDesc = descInput.value.trim();
+    const newPer = perInput.value.trim() || "pcs";
+    const newRate = Number(rateInput.value) || 0;
+
+    if (!newDesc) {
+      alert("Item description cannot be empty.");
+      descInput.focus();
+      return;
+    }
+
+    setLoading(updateBtn, true, "Saving...");
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Please log in first.");
+
+      const allItems = getCatalogFromTable();
+      await db.collection("users").doc(user.uid).set({
+        additionalItems: allItems
+      }, { merge: true });
+
+      updateBtn.classList.remove("btn-secondary");
+      updateBtn.classList.add("btn-primary");
+      updateBtn.textContent = "Saved ✓";
+      setTimeout(() => {
+        updateBtn.classList.remove("btn-primary");
+        updateBtn.classList.add("btn-secondary");
+        updateBtn.textContent = "Update";
+      }, 1500);
+      updateCatalogCount();
+    } catch (err) {
+      alert("Failed to update item: " + err.message);
+    } finally {
+      setLoading(updateBtn, false);
+    }
   });
+
+  // Single Item Delete Button Handler
+  removeBtn.addEventListener("click", async () => {
+    const itemDesc = descInput.value.trim() || "this item";
+    if (!confirm(`Are you sure you want to delete "${itemDesc}" from catalog?`)) {
+      return;
+    }
+
+    row.remove();
+    updateCatalogCount();
+
+    // Persist removal to Firestore
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        const remainingItems = getCatalogFromTable();
+        await db.collection("users").doc(user.uid).set({
+          additionalItems: remainingItems
+        }, { merge: true });
+      }
+    } catch (err) {
+      console.error("Failed to delete item from Firestore:", err);
+    }
+  });
+
   return row;
 }
 
 function getCatalogFromTable() {
   return Array.from(document.querySelectorAll(".catalog-row")).map((row) => ({
     description: row.querySelector(".cat-desc").value.trim(),
+    per: (row.querySelector(".cat-per") ? row.querySelector(".cat-per").value.trim() : "") || "pcs",
     rate: Number(row.querySelector(".cat-rate").value) || 0
   })).filter((item) => item.description);
 }
@@ -70,6 +150,19 @@ async function loadSettingsForm(userId) {
     ? data.additionalItems
     : DEFAULT_ADDITIONAL_ITEMS;
   items.forEach((item) => catalogBody.appendChild(createCatalogRow(item)));
+  updateCatalogCount();
+
+  // Search filter
+  const searchInput = document.getElementById("catalogSearchInput");
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      const term = searchInput.value.toLowerCase().trim();
+      document.querySelectorAll(".catalog-row").forEach((row) => {
+        const desc = (row.querySelector(".cat-desc").value || "").toLowerCase();
+        row.style.display = desc.includes(term) ? "" : "none";
+      });
+    });
+  }
 }
 
 async function saveSettings(form, messageEl, submitBtn) {
