@@ -36,34 +36,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script>
-    // Test if html2pdf loads
-    console.log("[INIT] View-bill.html loading...");
-    window.addEventListener("load", () => {
-      console.log("[INIT] Page fully loaded");
-      console.log("[INIT] html2pdf available:", typeof html2pdf !== "undefined");
-      if (typeof html2pdf !== "undefined") {
-        console.log("[INIT] html2pdf.default available:", typeof html2pdf.default !== "undefined");
-        console.log("[INIT] html2pdf is callable:", typeof html2pdf === "function");
-      }
-    });
-  </script>
-  <script src="js/html2pdf.bundle.min.js"></script>
-  <script>
-    if (typeof html2pdf === "undefined") {
-      console.warn("[INIT] Local html2pdf failed to load, loading CDN fallback...");
-      var script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-      script.onload = function() {
-        console.log("[INIT] CDN html2pdf loaded successfully");
-      };
-      script.onerror = function() {
-        console.error("[INIT] Failed to load html2pdf fallback script.");
-      };
-      document.head.appendChild(script);
-    }
-    console.log("[INIT] After html2pdf script tag, html2pdf available:", typeof html2pdf !== "undefined");
-  </script>
   <script src="js/firebase-config.js"></script>
   <script src="js/assets-data.js"></script>
   <script src="js/utils.js"></script>
@@ -71,9 +43,6 @@
   <script src="js/auth.js"></script>
   <script src="js/bills.js"></script>
   <script>
-    console.log("[PAGE] Scripts loaded");
-    console.log("[PAGE] html2pdf available:", typeof html2pdf !== "undefined");
-    
     const params = new URLSearchParams(window.location.search);
     const billId = params.get("id");
     const autoDownload = params.get("download") === "true";
@@ -86,7 +55,6 @@
     const notFoundMessage = document.getElementById("notFoundMessage");
 
     function setActionsEnabled(enabled) {
-      console.log("[PAGE] setActionsEnabled:", enabled);
       printBtn.disabled = !enabled;
       downloadPdfBtn.disabled = !enabled;
     }
@@ -94,7 +62,6 @@
     setActionsEnabled(false);
 
     printBtn.addEventListener("click", () => {
-      console.log("[ACTION] Print button clicked");
       if (!document.getElementById("quotationDocument")) {
         alert("Invoice is still loading. Please wait.");
         return;
@@ -103,7 +70,6 @@
     });
 
     downloadPdfBtn.addEventListener("click", () => {
-      console.log("[ACTION] Download PDF button clicked");
       if (!document.getElementById("quotationDocument")) {
         alert("Invoice is still loading. Please wait.");
         return;
@@ -112,7 +78,6 @@
     });
 
     function showNotFound(message) {
-      console.log("[PAGE] Showing error:", message);
       loadingState.hidden = true;
       notFoundMessage.textContent = message;
       notFound.hidden = false;
@@ -120,16 +85,17 @@
     }
 
     requireAuth().then(async (user) => {
-      console.log("[PAGE] User authenticated:", user.uid);
-      
       if (!billId) {
         showNotFound("Invalid bill link. Open a bill from the dashboard.");
         return;
       }
 
       try {
-        console.log("[PAGE] Loading bill:", billId);
-        const result = await loadBillById(billId, user.uid);
+        // Parallel fetch for lightning speed
+        const [result, profile] = await Promise.all([
+          loadBillById(billId, user.uid),
+          loadSellerProfile(user.uid)
+        ]);
 
         if (result.error) {
           const messages = {
@@ -142,26 +108,15 @@
           return;
         }
 
-        console.log("[PAGE] Bill loaded, bill number:", result.billNumber);
         currentBillNumber = result.billNumber || result.id;
-        const profile = await loadSellerProfile(user.uid);
-        console.log("[PAGE] Profile loaded");
-        
         loadingState.hidden = true;
         document.getElementById("billContainer").innerHTML = renderQuotationHTML(result, profile);
-        
-        console.log("[PAGE] Invoice rendered, checking element...");
-        const quotDoc = document.getElementById("quotationDocument");
-        console.log("[PAGE] quotationDocument exists:", !!quotDoc);
-        
         setActionsEnabled(true);
-        console.log("[PAGE] Ready for print/download");
 
         if (autoDownload) {
-          console.log("[PAGE] Auto-download triggered");
           setTimeout(() => {
             downloadQuotationPdf(currentBillNumber);
-          }, 600);
+          }, 350);
         }
       } catch (error) {
         console.error("[PAGE] Error:", error);

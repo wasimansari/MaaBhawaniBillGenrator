@@ -746,6 +746,9 @@ function renderBillCardElement(bill) {
   viewLink.type = "button";
   viewLink.textContent = "View";
   viewLink.addEventListener("click", () => {
+    try {
+      sessionStorage.setItem("view_bill_" + bill.id, JSON.stringify(bill));
+    } catch (e) {}
     window.location.href = `view-bill.html?id=${encodeURIComponent(bill.id)}`;
   });
 
@@ -754,6 +757,9 @@ function renderBillCardElement(bill) {
   pdfBtn.type = "button";
   pdfBtn.textContent = "PDF";
   pdfBtn.addEventListener("click", () => {
+    try {
+      sessionStorage.setItem("view_bill_" + bill.id, JSON.stringify(bill));
+    } catch (e) {}
     window.location.href = `view-bill.html?id=${encodeURIComponent(bill.id)}&download=true`;
   });
 
@@ -984,6 +990,23 @@ async function loadBillById(billId, uid) {
     return { error: "missing-auth" };
   }
 
+  // 1. Instant cache check (0ms response when opened from dashboard)
+  try {
+    const cachedStr = sessionStorage.getItem("view_bill_" + billId);
+    if (cachedStr) {
+      const cached = JSON.parse(cachedStr);
+      if (cached && cached.userId === ownerId) {
+        // Revalidate in background without blocking UI
+        db.collection("bills").doc(billId).get().then((doc) => {
+          if (doc.exists) {
+            sessionStorage.setItem("view_bill_" + billId, JSON.stringify({ id: doc.id, ...doc.data() }));
+          }
+        }).catch(() => {});
+        return cached;
+      }
+    }
+  } catch (e) {}
+
   try {
     const doc = await db.collection("bills").doc(billId).get();
     if (!doc.exists) {
@@ -993,7 +1016,11 @@ async function loadBillById(billId, uid) {
     if (data.userId !== ownerId) {
       return { error: "forbidden" };
     }
-    return { id: doc.id, ...data };
+    const billObj = { id: doc.id, ...data };
+    try {
+      sessionStorage.setItem("view_bill_" + billId, JSON.stringify(billObj));
+    } catch (e) {}
+    return billObj;
   } catch (error) {
     if (error.code === "permission-denied") {
       return { error: "permission-denied" };

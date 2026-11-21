@@ -19,19 +19,72 @@ function setLoading(button, loading, loadingText = "Please wait...") {
   }
 }
 
+const AUTH_STORAGE_KEY = "billgen_auth_user";
+
+function getCachedAuthUser() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedAuthUser(user) {
+  try {
+    if (!user) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    } else {
+      localStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({
+          uid: user.uid,
+          email: user.email || "",
+          displayName: user.displayName || ""
+        })
+      );
+    }
+  } catch (e) {}
+}
+
 async function requireAuth(redirectTo = "login.html") {
+  // 1. Instant resolution if currentUser is already in memory
+  if (auth.currentUser) {
+    setCachedAuthUser(auth.currentUser);
+    return auth.currentUser;
+  }
+
+  // 2. Instant resolution from localStorage snapshot (eliminates 400-800ms Firebase handshake latency)
+  const cached = getCachedAuthUser();
+  if (cached && cached.uid) {
+    // In background: verify session with Firebase auth state
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        setCachedAuthUser(user);
+      } else {
+        setCachedAuthUser(null);
+        window.location.href = redirectTo;
+      }
+    });
+    return cached;
+  }
+
+  // 3. Fallback: Wait for onAuthStateChanged if no cached snapshot
   if (typeof auth.authStateReady === "function") {
     await auth.authStateReady();
   }
   if (auth.currentUser) {
+    setCachedAuthUser(auth.currentUser);
     return auth.currentUser;
   }
   return new Promise((resolve) => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       unsubscribe();
       if (user) {
+        setCachedAuthUser(user);
         resolve(user);
       } else {
+        setCachedAuthUser(null);
         window.location.href = redirectTo;
       }
     });
@@ -90,6 +143,7 @@ async function registerUser(form, messageEl, submitBtn) {
       },
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    setCachedAuthUser(credential.user);
     window.location.href = "dashboard.html";
   } catch (error) {
     const messages = {
@@ -120,7 +174,8 @@ async function loginUser(form, messageEl, submitBtn) {
   showMessage(messageEl, "", "error");
 
   try {
-    await auth.signInWithEmailAndPassword(email, password);
+    const credential = await auth.signInWithEmailAndPassword(email, password);
+    setCachedAuthUser(credential.user);
     window.location.href = "dashboard.html";
   } catch (error) {
     const messages = {
@@ -135,6 +190,10 @@ async function loginUser(form, messageEl, submitBtn) {
 }
 
 async function logoutUser() {
+  setCachedAuthUser(null);
+  try {
+    sessionStorage.clear();
+  } catch (e) {}
   await auth.signOut();
   window.location.href = "login.html";
 }

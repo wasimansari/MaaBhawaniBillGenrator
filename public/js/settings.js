@@ -126,35 +126,39 @@ function getCatalogFromTable() {
   })).filter((item) => item.description);
 }
 
-async function loadSettingsForm(userId) {
-  const doc = await db.collection("users").doc(userId).get();
-  const data = doc.exists ? doc.data() : {};
+function populateSettingsUI(data = {}) {
   const business = { ...DEFAULT_BUSINESS, ...(data.business || {}) };
   const form = document.getElementById("settingsForm");
+  if (!form) return;
 
-  form.businessName.value = business.name;
-  form.businessAddress.value = business.address;
-  form.businessMobile.value = business.mobile;
-  form.businessEmail.value = business.email;
-  form.gstin.value = business.gstin;
-  form.stateCode.value = business.stateCode;
-  form.stateName.value = business.stateName;
-  form.tagline.value = business.tagline;
-  form.bankName.value = business.bankName;
-  form.accountNo.value = business.accountNo;
-  form.ifsc.value = business.ifsc;
+  if (form.businessName) form.businessName.value = business.name || "";
+  if (form.businessAddress) form.businessAddress.value = business.address || "";
+  if (form.businessMobile) form.businessMobile.value = business.mobile || "";
+  if (form.businessEmail) form.businessEmail.value = business.email || "";
+  if (form.gstin) form.gstin.value = business.gstin || "";
+  if (form.stateCode) form.stateCode.value = business.stateCode || "";
+  if (form.stateName) form.stateName.value = business.stateName || "";
+  if (form.tagline) form.tagline.value = business.tagline || "";
+  if (form.bankName) form.bankName.value = business.bankName || "";
+  if (form.accountNo) form.accountNo.value = business.accountNo || "";
+  if (form.ifsc) form.ifsc.value = business.ifsc || "";
 
   const catalogBody = document.getElementById("catalogBody");
-  catalogBody.innerHTML = "";
-  const items = data.additionalItems && data.additionalItems.length
-    ? data.additionalItems
-    : DEFAULT_ADDITIONAL_ITEMS;
-  items.forEach((item) => catalogBody.appendChild(createCatalogRow(item)));
-  updateCatalogCount();
+  if (catalogBody) {
+    catalogBody.innerHTML = "";
+    const items = data.additionalItems && data.additionalItems.length
+      ? data.additionalItems
+      : DEFAULT_ADDITIONAL_ITEMS;
+    const fragment = document.createDocumentFragment();
+    items.forEach((item) => fragment.appendChild(createCatalogRow(item)));
+    catalogBody.appendChild(fragment);
+    updateCatalogCount();
+  }
 
   // Search filter
   const searchInput = document.getElementById("catalogSearchInput");
-  if (searchInput) {
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = "true";
     searchInput.addEventListener("input", () => {
       const term = searchInput.value.toLowerCase().trim();
       document.querySelectorAll(".catalog-row").forEach((row) => {
@@ -165,28 +169,61 @@ async function loadSettingsForm(userId) {
   }
 }
 
+async function loadSettingsForm(userId) {
+  // 1. Instant 0ms render from sessionStorage
+  try {
+    const cachedStr = sessionStorage.getItem("seller_profile_" + userId);
+    if (cachedStr) {
+      populateSettingsUI(JSON.parse(cachedStr));
+    }
+  } catch (e) {}
+
+  // 2. Fetch fresh profile from Firestore
+  try {
+    const doc = await db.collection("users").doc(userId).get();
+    const data = doc.exists ? doc.data() : {};
+    try {
+      sessionStorage.setItem("seller_profile_" + userId, JSON.stringify(data));
+    } catch (e) {}
+    populateSettingsUI(data);
+  } catch (err) {
+    console.error("[SETTINGS] Error loading profile from Firestore:", err);
+  }
+}
+
 async function saveSettings(form, messageEl, submitBtn) {
   setLoading(submitBtn, true, "Saving settings...");
   showMessage(messageEl, "", "error");
 
   try {
     const user = auth.currentUser;
+    const businessData = {
+      name: form.businessName.value.trim(),
+      address: form.businessAddress.value.trim(),
+      mobile: Validators.normalizeMobile(form.businessMobile.value) || form.businessMobile.value.trim(),
+      email: form.businessEmail.value.trim(),
+      gstin: form.gstin.value.trim(),
+      stateCode: form.stateCode.value.trim(),
+      stateName: form.stateName.value.trim(),
+      tagline: form.tagline.value.trim(),
+      bankName: form.bankName.value.trim(),
+      accountNo: form.accountNo.value.trim(),
+      ifsc: form.ifsc.value.trim()
+    };
+    const catalogData = getCatalogFromTable();
+
     await db.collection("users").doc(user.uid).set({
-      business: {
-        name: form.businessName.value.trim(),
-        address: form.businessAddress.value.trim(),
-        mobile: Validators.normalizeMobile(form.businessMobile.value) || form.businessMobile.value.trim(),
-        email: form.businessEmail.value.trim(),
-        gstin: form.gstin.value.trim(),
-        stateCode: form.stateCode.value.trim(),
-        stateName: form.stateName.value.trim(),
-        tagline: form.tagline.value.trim(),
-        bankName: form.bankName.value.trim(),
-        accountNo: form.accountNo.value.trim(),
-        ifsc: form.ifsc.value.trim()
-      },
-      additionalItems: getCatalogFromTable()
+      business: businessData,
+      additionalItems: catalogData
     }, { merge: true });
+
+    // Update session cache immediately so dashboard and bills reflect changes with 0ms delay
+    try {
+      sessionStorage.setItem("seller_profile_" + user.uid, JSON.stringify({
+        business: businessData,
+        additionalItems: catalogData
+      }));
+    } catch (e) {}
 
     showMessage(messageEl, "Settings saved successfully.", "success");
   } catch (error) {

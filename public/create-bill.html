@@ -357,15 +357,15 @@
           formHelpers.addRow();
         }
       } else {
-        // Initial clean row with next alphanumeric serial number
+        // Parallel fetch of next serial numbers for instant form readiness
+        const [nextBillSerial, nextQtnSerial] = await Promise.all([
+          getNextSerialNumber(user.uid, "bill"),
+          getNextSerialNumber(user.uid, "quotation")
+        ]);
         const invField = document.getElementById("invoiceNumber");
-        if (invField && !invField.value) {
-          invField.value = await getNextSerialNumber(user.uid, "bill");
-        }
+        if (invField && !invField.value) invField.value = nextBillSerial;
         const qtnField = document.getElementById("quotationNumber");
-        if (qtnField && !qtnField.value) {
-          qtnField.value = await getNextSerialNumber(user.uid, "quotation");
-        }
+        if (qtnField && !qtnField.value) qtnField.value = nextQtnSerial;
         formHelpers.addRow();
       }
 
