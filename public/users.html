@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Authorization & Approvals — BillGen Studio OS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Navigation Bar -->
+    <nav class="nav-bar no-print">
+      <div class="brand">
+        <a href="dashboard.html" class="brand-icon" style="text-decoration: none;">
+          <span>❖</span>
+        </a>
+        <div class="brand-title">
+          <h1>BILLGEN <span class="brand-badge">STUDIO OS</span></h1>
+          <p class="user-greeting">User Authorization &amp; Access Control</p>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="dashboard.html">← Dashboard</a>
+        <a class="btn btn-primary" href="create-bill.html">+ New Invoice</a>
+      </div>
+    </nav>
+
+    <!-- Unauthorized Access Notice (Non-Admins) -->
+    <div id="unauthorizedScreen" class="admin-empty-state" style="display: none; margin-top: 3rem;">
+      <span class="admin-empty-icon">🔒</span>
+      <h3 style="color: #ef4444; font-size: 1.4rem; margin-bottom: 0.5rem;">Access Restricted</h3>
+      <p style="max-width: 480px; margin: 0 auto 1.25rem; font-size: 0.95rem; line-height: 1.6;">
+        This section is reserved for authorized system administrators (<strong
+          style="color: #7dd3fc;">akram0031@gmail.com</strong> &amp; <strong
+          style="color: #7dd3fc;">yadavwanshigroupofcompany@gmail.com</strong>).
+      </p>
+      <p style="color: var(--muted); font-size: 0.85rem;">Redirecting to your dashboard in a few seconds...</p>
+      <a class="btn btn-secondary" href="dashboard.html" style="margin-top: 1rem;">Return to Dashboard Now</a>
+    </div>
+
+    <!-- Main Admin Content -->
+    <div id="adminPageContent" style="display: none;">
+      <!-- Studio Header Panel -->
+      <div class="studio-panel" style="margin-bottom: 1.5rem;">
+        <div class="studio-panel-header">
+          <div class="studio-panel-title">
+            <h2 style="display: flex; align-items: center; gap: 0.65rem;">
+              <span style="font-size: 1.6rem;">🛡️</span> User Authorization &amp; Approvals
+            </h2>
+            <p class="studio-panel-subtitle">
+              Authorized Admins: <span class="admin-tag">akram0031@gmail.com</span> &bull; <span
+                class="admin-tag">yadavwanshigroupofcompany@gmail.com</span>
+            </p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <span class="admin-status-pill">Logged in: <strong id="adminCurrentEmail">Admin</strong></span>
+            <button type="button" class="refresh-pill" id="refreshUsersBtn" title="Refresh user list">
+              <span>↻</span> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="stats-bar">
+          <div class="stat-card">
+            <span class="stat-card-label">TOTAL REGISTERED</span>
+            <span class="stat-card-value" id="statTotalUsers">0</span>
+            <span class="stat-trend up">All system accounts</span>
+          </div>
+          <div class="stat-card" style="border-color: rgba(245, 158, 11, 0.4);">
+            <span class="stat-card-label" style="color: #f59e0b;">PENDING APPROVAL</span>
+            <span class="stat-card-value" id="statPendingUsers" style="color: #fbbf24;">0</span>
+            <span class="stat-trend" style="color: #fbbf24;">⚡ Awaiting authorization</span>
+          </div>
+          <div class="stat-card" style="border-color: rgba(110, 231, 183, 0.35);">
+            <span class="stat-card-label" style="color: #6ee7b7;">ACTIVE &amp; APPROVED</span>
+            <span class="stat-card-value" id="statApprovedUsers" style="color: #6ee7b7;">0</span>
+            <span class="stat-trend up">✓ Ready to login</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card-label">REJECTED</span>
+            <span class="stat-card-value" id="statRejectedUsers">0</span>
+            <span class="stat-trend" style="color: #f87171;">✕ Access disabled</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Action Alert Banner -->
+      <div id="adminActionAlert" class="admin-alert" style="display: none;"></div>
+
+      <!-- Controls Card (Search + Filter Tabs) -->
+      <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Search Bar -->
+        <div class="user-search-wrap">
+          <span class="user-search-icon">🔍</span>
+          <input type="text" id="userSearchInput" class="user-search-input"
+            placeholder="Search users by name, email, or mobile number..." autocomplete="off">
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="admin-tabs" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
+          <button type="button" class="admin-tab active" data-tab="pending">
+            ⏳ Pending Requests <span class="tab-badge" id="adminPendingCount">0</span>
+          </button>
+          <button type="button" class="admin-tab" data-tab="approved">
+            ✅ Approved Users <span class="tab-badge" id="adminApprovedCount">0</span>
+          </button>
+          <button type="button" class="admin-tab" data-tab="rejected">
+            ✕ Rejected <span class="tab-badge" id="adminRejectedCount">0</span>
+          </button>
+          <button type="button" class="admin-tab" data-tab="all">
+            👥 All Users <span class="tab-badge" id="adminAllCount">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Users Grid Container -->
+      <div id="usersGrid" class="admin-user-grid"></div>
+
+      <!-- Empty State -->
+      <div id="usersEmptyState" class="admin-empty-state" style="display: none; margin-top: 1rem;">
+        <span class="admin-empty-icon">🎉</span>
+        <h4 id="emptyStateTitle">All caught up!</h4>
+        <p id="emptyStateText">There are no pending user registration requests waiting for authorization.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
+  <script>
+    requireAuth().then((user) => {
+      if (user) {
+        initAdminUserPage(user);
+      }
+    });
+  </script>
+</body>
+
+</html>

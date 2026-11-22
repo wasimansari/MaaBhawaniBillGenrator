@@ -5,11 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BillGen — Simple Bill Generator</title>
-  <script>
-    if (localStorage.getItem("billgen_auth_user")) {
-      window.location.replace("dashboard.html");
-    }
-  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -17,7 +12,7 @@
   <div class="auth-layout">
     <div class="card" style="text-align: center;">
       <div class="brand" style="justify-content: center;">
-        <div class="brand-icon">BG</div>
+        <div class="brand-icon">❖</div>
         <div>
           <h1>BillGen</h1>
           <p class="muted">Simple bill generation for small businesses</p>
@@ -31,10 +26,23 @@
   </div>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/validators.js"></script>
+  <script src="js/auth.js"></script>
   <script>
-    auth.onAuthStateChanged((user) => {
-      if (user) window.location.href = "dashboard.html";
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) return;
+      if (isAdminEmail(user.email)) {
+        window.location.href = "dashboard.html";
+        return;
+      }
+      try {
+        const snap = await db.collection("users").doc(user.uid).get();
+        if (snap.exists && snap.data().status === "approved") {
+          window.location.href = "dashboard.html";
+        }
+      } catch (e) {}
     });
   </script>
 </body>

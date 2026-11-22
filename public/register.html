@@ -1,33 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Register — BillGen</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
   <div class="auth-layout">
     <div class="card">
       <div class="brand">
-        <div class="brand-icon">BG</div>
-        <div>
+        <div class="brand-icon-1">
+          <!-- <span>❖</span> -->
+          <span>
+            <image src="../public/images/Brand_logo.png" style="width:65px">
+          </span>
+        </div>
+        <div class="brand-title">
           <h1>Create account</h1>
           <p class="muted">Register with valid details</p>
         </div>
       </div>
-      <form id="registerForm">
+
+      <!-- Pending Approval Confirmation (Shown after successful registration) -->
+      <div id="pendingConfirmation" style="display: none; text-align: center; padding: 1rem 0;">
+        <div style="font-size: 3rem; margin-bottom: 0.75rem;">⏳</div>
+        <h2 style="font-size: 1.35rem; margin-bottom: 0.5rem; color: #60a5fa;">Approval Requested</h2>
+        <p class="pending-message"
+          style="color: var(--muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem; text-align: left; background: var(--surface-2); padding: 1rem; border-radius: 8px; border-left: 3px solid #60a5fa;">
+          Your registration has been submitted! An approval request has been sent to the admins. You will be able to log
+          in once either admin approves your account.
+        </p>
+        <div
+          style="margin-bottom: 1.5rem; text-align: left; font-size: 0.85rem; color: var(--muted); padding-left: 0.5rem;">
+          <strong>Designated Approvers:</strong>
+          <ul style="margin: 0.35rem 0 0 1.25rem; line-height: 1.5;">
+            <li>akram0031@gmail.com</li>
+            <li>yadavwanshigroupofcompany@gmail.com</li>
+          </ul>
+        </div>
+        <a href="login.html" class="btn btn-primary btn-block">Go to Login</a>
+      </div>
+
+      <!-- Registration Form -->
+      <form id="registerForm" style="margin-top: 15px;">
         <div class="form-group">
           <label for="name">Full name</label>
-          <input id="name" name="name" type="text" required autocomplete="name">
+          <input id="name" name="name" type="text" required autocomplete="name" placeholder="John Doe">
         </div>
         <div class="form-group">
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" required autocomplete="email">
+          <input id="email" name="email" type="email" required autocomplete="email" placeholder="name@example.com">
         </div>
         <div class="form-group">
           <label for="mobile">Mobile (10 digits)</label>
-          <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" required>
+          <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210"
+            required>
         </div>
         <div class="form-group">
           <label for="address">Address</label>
@@ -39,14 +69,17 @@
         </div>
         <div class="form-group">
           <label for="confirmPassword">Confirm password</label>
-          <input id="confirmPassword" name="confirmPassword" type="password" minlength="6" required autocomplete="new-password">
+          <input id="confirmPassword" name="confirmPassword" type="password" minlength="6" required
+            autocomplete="new-password">
         </div>
         <div id="message" class="message" hidden></div>
         <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Register</button>
       </form>
-      <p class="form-footer">Already have an account? <a href="login.html">Login</a></p>
+
+      <p class="form-footer" id="footerLink">Already have an account? <a href="login.html">Login</a></p>
     </div>
   </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -57,15 +90,43 @@
     const form = document.getElementById("registerForm");
     const messageEl = document.getElementById("message");
     const submitBtn = document.getElementById("submitBtn");
+    const pendingConfirmation = document.getElementById("pendingConfirmation");
+    const footerLink = document.getElementById("footerLink");
 
-    auth.onAuthStateChanged((user) => {
-      if (user) window.location.href = "dashboard.html";
+    let isSubmitting = false;
+
+    // Check initial auth state (ignore if user is submitting registration)
+    auth.onAuthStateChanged(async (user) => {
+      if (isSubmitting || !user) return;
+      if (isAdminEmail(user.email)) {
+        window.location.href = "dashboard.html";
+        return;
+      }
+      try {
+        const snap = await db.collection("users").doc(user.uid).get();
+        if (snap.exists && snap.data().status === "approved") {
+          window.location.href = "dashboard.html";
+        }
+      } catch (err) { }
     });
 
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      registerUser(form, messageEl, submitBtn);
+      isSubmitting = true;
+      try {
+        await registerUser(form, messageEl, submitBtn, {
+          hidden: false,
+          querySelector: (sel) => pendingConfirmation.querySelector(sel)
+        });
+        if (form.style.display === "none") {
+          pendingConfirmation.style.display = "block";
+          if (footerLink) footerLink.style.display = "none";
+        }
+      } finally {
+        isSubmitting = false;
+      }
     });
   </script>
 </body>
+
 </html>

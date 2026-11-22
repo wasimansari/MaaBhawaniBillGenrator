@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,17 +9,27 @@
   <link rel="prefetch" href="settings.html">
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
   <div class="container">
     <nav class="nav-bar no-print">
       <div class="brand">
-        <div class="brand-icon">BG</div>
-        <div>
-          <h1>BillGen</h1>
-          <p class="user-greeting" id="userGreeting">Loading...</p>
+        <div class="brand-icon-1">
+          <!-- <span>❖</span> -->
+          <span>
+            <image src="../public/images/Brand_logo.png" style="width:65px">
+          </span>
+        </div>
+        <div class="brand-title">
+          <h1>BILLGEN <span class="brand-badge">STUDIO OS</span></h1>
+          <p class="user-greeting" id="userGreeting">Loading session...</p>
         </div>
       </div>
       <div class="nav-actions">
+        <a class="btn btn-admin" id="adminNavBtn" href="users.html" style="display: none;"
+          title="User List & Approvals">
+          🛡️ Users &amp; Approvals <span class="admin-nav-badge" id="adminNavBadge" style="display: none;">0</span>
+        </a>
         <button class="btn btn-secondary" id="openBulkModalBtn" type="button">⚡ Bulk Generate</button>
         <a class="btn btn-secondary" href="settings.html">Settings</a>
         <a class="btn btn-primary" href="create-bill.html">+ New Invoice</a>
@@ -26,22 +37,131 @@
       </div>
     </nav>
 
-    <!-- Stats Summary Cards -->
-    <div class="stats-bar">
-      <div class="stat-card">
-        <span class="stat-card-label">Total Tax Invoices</span>
-        <span class="stat-card-value" id="statInvoicesCount">0</span>
-        <span class="stat-card-sub">Active bills stored</span>
+    <!-- Studio Report Panel (Matching AVAVA Studio OS Theme) -->
+    <div class="studio-panel">
+      <div class="studio-panel-header">
+        <div class="studio-panel-title">
+          <h2>Studio report</h2>
+          <p class="studio-panel-subtitle">This month · All projects &amp; invoices</p>
+        </div>
+        <button type="button" class="refresh-pill" id="dashboardRefreshBtn" title="Refresh dashboard data">
+          <span>↻</span> Refresh
+        </button>
       </div>
-      <div class="stat-card">
-        <span class="stat-card-label">Quotations</span>
-        <span class="stat-card-value" id="statQuotationsCount">0</span>
-        <span class="stat-card-sub">Estimates & quotes</span>
+
+      <div class="stats-bar">
+        <div class="stat-card">
+          <span class="stat-card-label">REVENUE</span>
+          <span class="stat-card-value" id="statTotalRevenue">₹ 0.00</span>
+          <span class="stat-trend up">↗ 18% vs last month</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">TAX INVOICES</span>
+          <span class="stat-card-value" id="statInvoicesCount">0</span>
+          <span class="stat-trend up">↗ 9% vs last month</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">QUOTATIONS</span>
+          <span class="stat-card-value" id="statQuotationsCount">0</span>
+          <span class="stat-trend up">↗ Estimates active</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">AVG. INVOICE VALUE</span>
+          <span class="stat-card-value" id="statAvgRevenue">₹ 0.00</span>
+          <span class="stat-trend up">↗ 41% vs last month</span>
+        </div>
       </div>
-      <div class="stat-card">
-        <span class="stat-card-label">Total Revenue</span>
-        <span class="stat-card-value" id="statTotalRevenue">₹ 0.00</span>
-        <span class="stat-card-sub">Cumulative invoice value</span>
+    </div>
+
+    <!-- Visual Analytics Row (Revenue Report wave chart + Revenue by Service donut) -->
+    <div class="analytics-grid">
+      <!-- Card 1: Revenue Report -->
+      <div class="chart-card">
+        <div>
+          <div class="chart-card-header">
+            <div>
+              <h3 style="font-size: 1.15rem; font-weight: 700; color: #ffffff; margin-bottom: 0.15rem;">Revenue report
+              </h3>
+              <p style="font-size: 0.8rem; color: var(--muted); margin: 0;">Invoiced this year vs last year</p>
+            </div>
+            <div class="segmented-control">
+              <button type="button" class="segmented-btn active" data-period="year">Year</button>
+              <button type="button" class="segmented-btn" data-period="weeks">Weeks</button>
+              <button type="button" class="segmented-btn" data-period="quarters">Quarters</button>
+            </div>
+          </div>
+          <div class="comparison-stats">
+            <div class="comp-item">
+              <span>This year</span>
+              <strong id="analyticsThisYear">₹ 0.00</strong>
+            </div>
+            <div class="comp-item">
+              <span>Last year</span>
+              <strong style="color: var(--muted);" id="analyticsLastYear">₹ 0.00</strong>
+            </div>
+          </div>
+        </div>
+        <!-- Smooth glowing wave chart SVG (AVAVA look) -->
+        <svg class="wave-chart-svg" viewBox="0 0 600 120" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0" />
+            </linearGradient>
+            <linearGradient id="strokeGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#38bdf8" />
+              <stop offset="100%" stop-color="#6ee7b7" />
+            </linearGradient>
+          </defs>
+          <!-- Lower wave (Last year) -->
+          <path d="M 0,110 C 100,105 180,95 240,105 C 320,115 380,85 460,95 C 520,102 560,90 600,85" fill="none"
+            stroke="rgba(255, 255, 255, 0.2)" stroke-width="2" stroke-dasharray="4 4" />
+          <!-- Upper filled area -->
+          <path d="M 0,100 C 90,85 160,110 240,75 C 310,45 370,80 440,40 C 490,15 540,30 600,10 L 600,120 L 0,120 Z"
+            fill="url(#waveGradient)" />
+          <!-- Upper glowing stroke (This year) -->
+          <path d="M 0,100 C 90,85 160,110 240,75 C 310,45 370,80 440,40 C 490,15 540,30 600,10" fill="none"
+            stroke="url(#strokeGradient)" stroke-width="3.5" stroke-linecap="round"
+            filter="drop-shadow(0 0 8px rgba(56, 189, 248, 0.6))" />
+        </svg>
+      </div>
+
+      <!-- Card 2: Revenue by service / type -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #ffffff; margin-bottom: 0.15rem;">Revenue by service
+            </h3>
+            <p style="font-size: 0.8rem; color: var(--muted); margin: 0;">Distribution by document</p>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <svg class="donut-svg" viewBox="0 0 100 100">
+              <!-- Background circle -->
+              <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12" />
+              <!-- Slices: Tax Invoices (Cyan/Mint) + Quotations (Purple) -->
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#38bdf8" stroke-width="12" stroke-dasharray="160 238.7"
+                stroke-dashoffset="0" stroke-linecap="round"
+                style="filter: drop-shadow(0 0 6px rgba(56,189,248,0.5));" />
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#c084fc" stroke-width="12" stroke-dasharray="65 238.7"
+                stroke-dashoffset="-165" stroke-linecap="round"
+                style="filter: drop-shadow(0 0 6px rgba(192,132,252,0.5));" />
+            </svg>
+            <div class="donut-center-text">
+              <span style="font-size: 0.72rem; color: var(--muted); display: block;">Invoices</span>
+              <strong style="font-size: 1.35rem; color: #ffffff; font-weight: 800;" id="donutInvoicePct">71%</strong>
+            </div>
+          </div>
+          <div class="donut-legend">
+            <span class="legend-item"><span class="legend-dot"
+                style="background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></span> Invoices <strong style="color: #fff;"
+                id="legendInvPct">71%</strong></span>
+            <span class="legend-item"><span class="legend-dot"
+                style="background: #c084fc; box-shadow: 0 0 6px #c084fc;"></span> Quotes <strong style="color: #fff;"
+                id="legendQtnPct">29%</strong></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -49,7 +169,8 @@
     <div class="dashboard-toolbar">
       <div class="toolbar-search">
         <span class="search-icon">🔍</span>
-        <input type="text" id="billSearchInput" placeholder="Search by Invoice #, Customer name, or Mobile...">
+        <input type="text" id="billSearchInput" placeholder="Search or jump to (Invoice #, Customer, Mobile)...">
+        <span class="shortcut-badge">Ctrl K</span>
       </div>
       <div class="toolbar-actions">
         <select id="billTypeFilter" title="Filter by document type">
@@ -84,48 +205,71 @@
       </div>
       <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
         <p style="font-size: 0.95rem; margin-bottom: 1.25rem; color: var(--text);">
-          Configure the items and tax rates below. All generated invoices will carry these exact items, amounts, and sequential invoice numbers.
+          Configure the items and tax rates below. All generated invoices will carry these exact items, amounts, and
+          sequential invoice numbers.
         </p>
 
         <!-- Generation Settings (Count & Taxes) -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+        <div class="bulk-settings-row" style="margin-bottom: 1.25rem;">
           <div class="form-group">
-            <label for="bulkCountInput" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">Number of Invoices to Generate</label>
-            <input type="number" id="bulkCountInput" value="500" min="1" max="1000" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
-            <small class="muted" style="display:block; margin-top: 0.25rem;">Recommended: 500 bills (~2-3 sec, ~270 KB storage = 0.026% of 1 GB free limit).</small>
+            <label for="bulkCountInput" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">Number of
+              Invoices to Generate</label>
+            <input type="number" id="bulkCountInput" value="500" min="1" max="1000"
+              style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+            <small class="muted" style="display:block; margin-top: 0.25rem;">Recommended: 500 bills (~2-3 sec, ~270 KB
+              storage = 0.026% of 1 GB free limit).</small>
           </div>
           <div class="form-group">
-            <label for="bulkCgstPercent" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">CGST (%)</label>
-            <input type="number" id="bulkCgstPercent" value="5" min="0" step="0.01" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+            <label for="bulkCgstPercent" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">CGST
+              (%)</label>
+            <input type="number" id="bulkCgstPercent" value="5" min="0" step="0.01"
+              style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
           </div>
           <div class="form-group">
-            <label for="bulkSgstPercent" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">SGST (%)</label>
-            <input type="number" id="bulkSgstPercent" value="5" min="0" step="0.01" style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
+            <label for="bulkSgstPercent" style="display:block; margin-bottom: 0.35rem; font-weight: 600;">SGST
+              (%)</label>
+            <input type="number" id="bulkSgstPercent" value="5" min="0" step="0.01"
+              style="width: 100%; padding: 0.65rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem;">
           </div>
         </div>
 
         <!-- Customer Information (Optional) -->
-        <div style="background: var(--surface-2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.25rem;">
-          <strong style="display: block; margin-bottom: 0.35rem; font-size: 0.95rem;">Customer Information (Optional — applied to all generated bills)</strong>
-          <p class="muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Leave blank if not needed, or enter customer details to show on every invoice:</p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+        <div
+          style="background: var(--surface-2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.25rem;">
+          <strong style="display: block; margin-bottom: 0.35rem; font-size: 0.95rem;">Customer Information (Optional —
+            applied to all generated bills)</strong>
+          <p class="muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Leave blank if not needed, or enter
+            customer details to show on every invoice:</p>
+          <div class="form-row" style="gap: 0.75rem; margin-bottom: 0.75rem;">
             <div class="form-group">
-              <label for="bulkCustomerName" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Name</label>
-              <input type="text" id="bulkCustomerName" placeholder="e.g. Cash, Walk-in, or Client Name" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+              <label for="bulkCustomerName"
+                style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer
+                Name</label>
+              <input type="text" id="bulkCustomerName" placeholder="e.g. Cash, Walk-in, or Client Name"
+                style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
             </div>
             <div class="form-group">
-              <label for="bulkCustomerMobile" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Mobile (optional)</label>
-              <input type="tel" id="bulkCustomerMobile" maxlength="10" placeholder="10-digit mobile number" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+              <label for="bulkCustomerMobile"
+                style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Mobile
+                (optional)</label>
+              <input type="tel" id="bulkCustomerMobile" maxlength="10" placeholder="10-digit mobile number"
+                style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div class="form-row" style="gap: 0.75rem;">
             <div class="form-group">
-              <label for="bulkCustomerAddress" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Address (optional)</label>
-              <input type="text" id="bulkCustomerAddress" placeholder="Customer address / city" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+              <label for="bulkCustomerAddress"
+                style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Customer Address
+                (optional)</label>
+              <input type="text" id="bulkCustomerAddress" placeholder="Customer address / city"
+                style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
             </div>
             <div class="form-group">
-              <label for="bulkBillDate" style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Invoice Date</label>
-              <input type="date" id="bulkBillDate" style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+              <label for="bulkBillDate"
+                style="display:block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 500;">Invoice
+                Date</label>
+              <input type="date" id="bulkBillDate"
+                style="width: 100%; padding: 0.5rem 0.65rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
             </div>
           </div>
         </div>
@@ -135,7 +279,8 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
             <div>
               <strong style="font-size: 1rem;">Select Items & Amounts (Applied to All Bills)</strong>
-              <p class="muted" style="font-size: 0.85rem; margin: 0.15rem 0 0;">Select items from dropdown, adjust quantity, and fill rate manually:</p>
+              <p class="muted" style="font-size: 0.85rem; margin: 0.15rem 0 0;">Select items from dropdown, adjust
+                quantity, and fill rate manually:</p>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" id="bulkAddItemRowBtn">+ Add Item Row</button>
           </div>
@@ -160,7 +305,8 @@
         </div>
 
         <!-- Live Totals Box -->
-        <div class="totals-preview" style="background: var(--surface-2); padding: 1.15rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.25rem;">
+        <div class="totals-preview"
+          style="background: var(--surface-2); padding: 1.15rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.25rem;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
             <span>Subtotal:</span>
             <strong id="bulkSubtotalDisplay">₹ 0.00</strong>
@@ -173,11 +319,13 @@
             <span>SGST (<span id="bulkSgstLabel">5</span>%):</span>
             <span id="bulkSgstDisplay">₹ 0.00</span>
           </div>
-          <div style="display: flex; justify-content: space-between; padding-top: 0.65rem; border-top: 1px solid var(--border); font-size: 1.15rem;">
+          <div
+            style="display: flex; justify-content: space-between; padding-top: 0.65rem; border-top: 1px solid var(--border); font-size: 1.15rem;">
             <strong>Grand Total Per Bill:</strong>
             <strong id="bulkGrandTotalDisplay" style="color: var(--primary);">₹ 0.00</strong>
           </div>
-          <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem; line-height: 1.4;" id="bulkAmountWordsPreview"></p>
+          <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem; line-height: 1.4;"
+            id="bulkAmountWordsPreview"></p>
         </div>
 
         <!-- Progress Area -->
@@ -244,6 +392,7 @@
   <script src="js/utils.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/bills.js"></script>
+  <script src="js/admin.js"></script>
   <script>
     document.getElementById("logoutBtn").addEventListener("click", logoutUser);
 
@@ -325,9 +474,11 @@
     function getBulkItemsFromTable() {
       return Array.from(bulkItemsBody.querySelectorAll(".item-row")).map((row) => ({
         description: (row.querySelector(".item-desc").value || "").trim(),
+        hsn: (row.querySelector(".item-hsn") ? row.querySelector(".item-hsn").value : "").trim(),
+        gstRate: Number(row.querySelector(".item-gst") ? row.querySelector(".item-gst").value : 5) || 0,
         qty: Number(row.querySelector(".item-qty").value) || 0,
         rate: Number(row.querySelector(".item-rate").value) || 0,
-        per: (row.querySelector(".item-per").value || "pcs").trim()
+        per: (row.querySelector(".item-per").value || "Pcs").trim()
       }));
     }
 
@@ -513,7 +664,54 @@
       }
     });
 
+    // Global Ctrl+K / Cmd+K shortcut to focus search
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const searchInput = document.getElementById("billSearchInput");
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    });
+
+    // Refresh pill button in Studio Report
+    const refreshBtn = document.getElementById("dashboardRefreshBtn");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.classList.add("spinning");
+        const loadingBills = document.getElementById("loadingBillsState");
+        if (loadingBills) loadingBills.hidden = false;
+        try {
+          const user = await ensureAuthenticatedUser();
+          if (user) {
+            sessionStorage.removeItem("dashboard_bills_" + user.uid);
+            await loadBillsList(document.getElementById("billsList"), document.getElementById("emptyState"));
+          }
+        } finally {
+          if (loadingBills) loadingBills.hidden = true;
+          refreshBtn.disabled = false;
+          refreshBtn.classList.remove("spinning");
+        }
+      });
+    }
+
+    // Segmented control tabs (Year | Weeks | Quarters)
+    document.querySelectorAll(".segmented-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".segmented-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+
     requireAuth().then(async (user) => {
+      // Display Users & Approvals button in navigation if current user is an admin
+      if (isAdminEmail(user.email)) {
+        initAdminNavBadge(user);
+      }
+
       // Parallelize profile and catalog loading for instant dashboard initialization
       const [profile] = await Promise.all([
         loadSellerProfile(user.uid),
@@ -545,4 +743,5 @@
     });
   </script>
 </body>
+
 </html>

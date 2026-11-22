@@ -1,15 +1,25 @@
 const DEFAULT_CATALOG_ITEMS = [
-  { description: "MONITOR(24 INCH)", per: "pcs", rate: 9500 },
-  { description: "KEYBOARD", per: "pcs", rate: 550 },
-  { description: "WIRELESS MOUSE", per: "pcs", rate: 450 },
-  { description: "UPS 600VA", per: "pcs", rate: 2850 },
-  { description: "UPS 1 KVA", per: "pcs", rate: 4850 },
-  { description: "CCTV CAMERA 4 MP", per: "pcs", rate: 1850 },
-  { description: "CCTV CAMERA 2 MP", per: "pcs", rate: 1250 },
-  { description: "SMPS 5 AMP", per: "pcs", rate: 450 }
+  { description: "Football Cosco Cuba", per: "Pcs", rate: 415, hsn: "95066210", gstRate: 5 },
+  { description: "Volley Ball Cosco Shot Volley", per: "Pcs", rate: 320, hsn: "95066220", gstRate: 5 },
+  { description: "Throw Ball", per: "Pcs", rate: 250, hsn: "95066210", gstRate: 5 },
+  { description: "Foot Operated Air Pump CLS-1605", per: "Pcs", rate: 150, hsn: "84142090", gstRate: 18 },
+  { description: "Cricket Bat K/w Design", per: "Pcs", rate: 375, hsn: "95069920", gstRate: 5 },
+  { description: "Cricket Bat No 4-6 Polish Ist", per: "Pcs", rate: 160, hsn: "95069920", gstRate: 5 },
+  { description: "Cricket Tenniss Ball Cosco L/w", per: "Box", rate: 278, hsn: "95066990", gstRate: 5 },
+  { description: "Cricket Stumps M.C.C.Polish", per: "Pcs", rate: 70, hsn: "95069990", gstRate: 5 },
+  { description: "Bails", per: "dozen", rate: 48, hsn: "95069990", gstRate: 5 },
+  { description: "Badminton Racket Cosco CZ - 50", per: "pair", rate: 360, hsn: "95065100", gstRate: 5 },
+  { description: "Shuttle Cock Cosco Aero 500", per: "Box", rate: 200, hsn: "95069910", gstRate: 5 },
+  { description: "MONITOR(24 INCH)", per: "pcs", rate: 9500, hsn: "84716060", gstRate: 18 },
+  { description: "KEYBOARD", per: "pcs", rate: 550, hsn: "84716060", gstRate: 18 },
+  { description: "WIRELESS MOUSE", per: "pcs", rate: 450, hsn: "84716060", gstRate: 18 },
+  { description: "UPS 600VA", per: "pcs", rate: 2850, hsn: "85044090", gstRate: 18 },
+  { description: "CCTV CAMERA 4 MP", per: "pcs", rate: 1850, hsn: "85258900", gstRate: 18 },
+  { description: "CCTV CAMERA 2 MP", per: "pcs", rate: 1250, hsn: "85258900", gstRate: 18 },
+  { description: "SMPS 5 AMP", per: "pcs", rate: 450, hsn: "85044090", gstRate: 18 }
 ];
 
-let catalogItems = [];
+let catalogItems = [...DEFAULT_CATALOG_ITEMS];
 let pendingRowForNewItem = null;
 
 async function ensureAuthenticatedUser() {
@@ -183,28 +193,43 @@ function initDocumentTypeToggle() {
     const documentType = checkedRadio ? checkedRadio.value : "bill";
     const user = await ensureAuthenticatedUser();
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEdit = urlParams.get("edit") === "true" || Boolean(sessionStorage.getItem("editBillId"));
+
+    const saveOnlyBtn = document.getElementById("saveOnlyBtn");
+    const downloadBtn = document.getElementById("downloadBtn") || document.getElementById("submitBtn");
+    const h2 = document.querySelector("h2");
+
     if (documentType === "quotation") {
       if (billToSection) billToSection.style.display = "none";
       if (quotationSection) quotationSection.style.display = "block";
-      const h2 = document.querySelector("h2");
-      if (h2) h2.textContent = "Create Quotation";
-      const submitBtn = document.getElementById("submitBtn");
-      if (submitBtn) submitBtn.textContent = "Save & Download Quotation";
+      if (h2) h2.textContent = isEdit ? "Update Quotation" : "Create Quotation";
+
+      if (saveOnlyBtn) {
+        saveOnlyBtn.innerHTML = isEdit ? "💾 Update Quotation" : "💾 Save Quotation";
+      }
+      if (downloadBtn) {
+        downloadBtn.innerHTML = isEdit ? "⬇️ Update & Download Quotation" : "⬇️ Download Quotation";
+      }
 
       const qtnField = document.getElementById("quotationNumber");
-      if (qtnField && !qtnField.value && user) {
+      if (qtnField && !qtnField.value && user && !isEdit) {
         qtnField.value = await getNextSerialNumber(user.uid, "quotation");
       }
     } else {
       if (billToSection) billToSection.style.display = "block";
       if (quotationSection) quotationSection.style.display = "none";
-      const h2 = document.querySelector("h2");
-      if (h2) h2.textContent = "Create Tax Invoice";
-      const submitBtn = document.getElementById("submitBtn");
-      if (submitBtn) submitBtn.textContent = "Save & Download Invoice";
+      if (h2) h2.textContent = isEdit ? "Update Tax Invoice" : "Create Tax Invoice";
+
+      if (saveOnlyBtn) {
+        saveOnlyBtn.innerHTML = isEdit ? "💾 Update Invoice" : "💾 Save Invoice";
+      }
+      if (downloadBtn) {
+        downloadBtn.innerHTML = isEdit ? "⬇️ Update & Download Invoice" : "⬇️ Download Invoice";
+      }
 
       const invField = document.getElementById("invoiceNumber");
-      if (invField && !invField.value && user) {
+      if (invField && !invField.value && user && !isEdit) {
         invField.value = await getNextSerialNumber(user.uid, "bill");
       }
     }
@@ -257,27 +282,31 @@ function populateItemSelect(selectEl, selectedValue = "") {
   defaultOpt.textContent = "-- Select Item --";
   selectEl.appendChild(defaultOpt);
 
+  const cleanSelected = String(selectedValue || "").trim();
   let matchFound = false;
+  let exactMatchedValue = "";
 
   catalogItems.forEach((item) => {
     const opt = document.createElement("option");
     opt.value = item.description;
     // Show ONLY item name in dropdown, not with amount
     opt.textContent = item.description;
-    if (item.description === selectedValue) {
+    if (cleanSelected && item.description.trim().toLowerCase() === cleanSelected.toLowerCase()) {
       opt.selected = true;
       matchFound = true;
+      exactMatchedValue = item.description;
     }
     selectEl.appendChild(opt);
   });
 
   // If a previously saved item is not currently in catalog, keep it as an option
-  if (selectedValue && !matchFound && selectedValue !== "__ADD_NEW__") {
+  if (cleanSelected && !matchFound && cleanSelected !== "__ADD_NEW__") {
     const customOpt = document.createElement("option");
-    customOpt.value = selectedValue;
-    customOpt.textContent = selectedValue;
+    customOpt.value = cleanSelected;
+    customOpt.textContent = cleanSelected;
     customOpt.selected = true;
     selectEl.appendChild(customOpt);
+    exactMatchedValue = cleanSelected;
   }
 
   const addNewOpt = document.createElement("option");
@@ -285,6 +314,13 @@ function populateItemSelect(selectEl, selectedValue = "") {
   addNewOpt.textContent = "+ Add New Item to Dropdown...";
   addNewOpt.style.fontWeight = "bold";
   selectEl.appendChild(addNewOpt);
+
+  // Explicitly assign select value so browser displays the selected option
+  if (exactMatchedValue) {
+    selectEl.value = exactMatchedValue;
+  } else if (cleanSelected && cleanSelected !== "__ADD_NEW__") {
+    selectEl.value = cleanSelected;
+  }
 }
 
 function updateAllItemDropdowns() {
@@ -394,17 +430,29 @@ function closeAddItemModal() {
 }
 
 function createItemRow(initialData = {}, onRowChange = null) {
-  // If description is provided but rate is not, look up default rate and unit from catalog
-  let initialRate = initialData.rate;
-  let initialPer = initialData.per;
-  if (initialData.description) {
-    const matched = catalogItems.find((it) => it.description === initialData.description);
+  const desc = (initialData.description || initialData.desc || initialData.name || initialData.item || "").trim();
+  let initialRate = (initialData.rate != null && initialData.rate !== "") ? initialData.rate : (initialData.price != null && initialData.price !== "" ? initialData.price : "");
+  let initialQty = (initialData.qty != null && initialData.qty !== "") ? initialData.qty : (initialData.quantity != null && initialData.quantity !== "" ? initialData.quantity : 1);
+  let initialPer = (initialData.per || initialData.unit || "Pcs").trim();
+  let initialHsn = (initialData.hsn || initialData.hsnSac || initialData.hsn_sac || "").trim();
+  let initialGst = (initialData.gstRate != null && initialData.gstRate !== "") 
+    ? initialData.gstRate 
+    : (initialData.gst != null && initialData.gst !== "" ? initialData.gst : (initialData.taxRate != null ? initialData.taxRate : 5));
+
+  if (desc) {
+    const matched = catalogItems.find((it) => it.description && it.description.trim().toLowerCase() === desc.toLowerCase());
     if (matched) {
-      if ((initialRate == null || initialRate === "" || initialRate === 0) && matched.rate > 0) {
+      if ((initialRate === "" || Number(initialRate) === 0) && matched.rate > 0) {
         initialRate = matched.rate;
       }
       if (!initialPer && matched.per) {
         initialPer = matched.per;
+      }
+      if (!initialHsn && matched.hsn) {
+        initialHsn = matched.hsn;
+      }
+      if ((initialGst == null || initialGst === "") && matched.gstRate != null) {
+        initialGst = matched.gstRate;
       }
     }
   }
@@ -415,15 +463,20 @@ function createItemRow(initialData = {}, onRowChange = null) {
     <td>
       <select class="item-desc" required></select>
     </td>
-    <td><input type="number" class="item-qty" min="0.01" step="0.01" value="${initialData.qty != null ? initialData.qty : 1}" required></td>
-    <td><input type="number" class="item-rate" min="0" step="0.01" value="${initialRate != null && initialRate !== '' ? initialRate : ''}" placeholder="0.00" required></td>
-    <td><input type="text" class="item-per" value="${initialPer || 'pcs'}" style="width:60px"></td>
-    <td class="item-amount">₹ 0.00</td>
+    <td><input type="text" class="item-hsn" value="${escapeHtml(initialHsn)}" placeholder="HSN/SAC" style="width:100%"></td>
+    <td><input type="number" class="item-gst" min="0" max="100" step="0.01" value="${initialGst}" placeholder="5" style="width:100%"></td>
+    <td><input type="number" class="item-qty" min="0.01" step="0.01" value="${initialQty}" required style="width:100%"></td>
+    <td><input type="number" class="item-rate" min="0" step="0.01" value="${initialRate !== "" ? initialRate : ""}" placeholder="0.00" required style="width:100%"></td>
+    <td><input type="text" class="item-per" value="${escapeHtml(initialPer || 'Pcs')}" style="width:100%"></td>
+    <td class="item-amount" style="text-align: right; font-weight: 600;">₹ 0.00</td>
     <td><button type="button" class="btn-icon remove-item" title="Remove">×</button></td>
   `;
 
   const select = row.querySelector(".item-desc");
-  populateItemSelect(select, initialData.description || "");
+  populateItemSelect(select, desc);
+  if (desc) {
+    select.value = desc;
+  }
 
   select.addEventListener("change", () => {
     if (select.value === "__ADD_NEW__") {
@@ -432,15 +485,20 @@ function createItemRow(initialData = {}, onRowChange = null) {
       return;
     }
 
-    // Automatically fill unit and price when item is selected
+    // Automatically fill unit, hsn, gst rate, and price when item is selected
     const chosen = catalogItems.find((it) => it.description === select.value);
     if (chosen) {
       if (chosen.per) {
         row.querySelector(".item-per").value = chosen.per;
       }
+      if (chosen.hsn) {
+        row.querySelector(".item-hsn").value = chosen.hsn;
+      }
+      if (chosen.gstRate != null) {
+        row.querySelector(".item-gst").value = chosen.gstRate;
+      }
       const rateInput = row.querySelector(".item-rate");
       if (rateInput) {
-        // Automatically populate price in text box if set in catalog
         if (chosen.rate != null && chosen.rate > 0) {
           rateInput.value = chosen.rate;
         } else if (!rateInput.value) {
@@ -458,21 +516,19 @@ function createItemRow(initialData = {}, onRowChange = null) {
 
 function bindBillForm() {
   const itemsBody = document.getElementById("itemsBody");
-  const cgstInput = document.getElementById("cgstPercent");
-  const sgstInput = document.getElementById("sgstPercent");
 
   function refreshTotals() {
     const items = getItemsFromTable();
-    const totals = calculateQuotationTotals(items, cgstInput.value, sgstInput.value);
+    const totals = calculateQuotationTotals(items);
     const subtotalEl = document.getElementById("subtotalDisplay");
-    const cgstEl = document.getElementById("cgstDisplay");
-    const sgstEl = document.getElementById("sgstDisplay");
+    const igstEl = document.getElementById("igstDisplay");
+    const roundOffEl = document.getElementById("roundOffDisplay");
     const grandEl = document.getElementById("grandTotalDisplay");
     const wordsEl = document.getElementById("amountWordsPreview");
 
     if (subtotalEl) subtotalEl.textContent = formatCurrency(totals.subtotal);
-    if (cgstEl) cgstEl.textContent = formatCurrency(totals.cgst);
-    if (sgstEl) sgstEl.textContent = formatCurrency(totals.sgst);
+    if (igstEl) igstEl.textContent = formatCurrency(totals.igst);
+    if (roundOffEl) roundOffEl.textContent = formatRoundOff(totals.roundOff);
     if (grandEl) grandEl.textContent = formatCurrency(totals.grandTotal);
     if (wordsEl) wordsEl.textContent = totals.amountInWords;
   }
@@ -487,9 +543,11 @@ function bindBillForm() {
   function getItemsFromTable() {
     return Array.from(itemsBody.querySelectorAll(".item-row")).map((row) => ({
       description: (row.querySelector(".item-desc").value || "").trim(),
+      hsn: (row.querySelector(".item-hsn") ? row.querySelector(".item-hsn").value : "").trim(),
+      gstRate: Number(row.querySelector(".item-gst") ? row.querySelector(".item-gst").value : 5) || 0,
       qty: Number(row.querySelector(".item-qty").value) || 0,
       rate: Number(row.querySelector(".item-rate").value) || 0,
-      per: (row.querySelector(".item-per").value || "pcs").trim()
+      per: (row.querySelector(".item-per").value || "Pcs").trim()
     }));
   }
 
@@ -517,13 +575,10 @@ function bindBillForm() {
 
   const addItemRowBtn = document.getElementById("addItemRow");
   if (addItemRowBtn) {
-    addItemRowBtn.addEventListener("click", () => {
+    addItemRowBtn.onclick = () => {
       addRow();
-    });
+    };
   }
-
-  cgstInput.addEventListener("input", refreshTotals);
-  sgstInput.addEventListener("input", refreshTotals);
 
   return { getItemsFromTable, refreshTotals, bindRowEvents, addRow, refreshRowAmount };
 }
@@ -532,8 +587,6 @@ function getCurrentFormData(helpers) {
   const customerName = (getCustomerNameField() ? getCustomerNameField().value : "").trim();
   const customerAddress = (getCustomerAddressField() ? getCustomerAddressField().value : "").trim();
   const customerMobile = Validators.normalizeMobile(getCustomerMobileField() ? getCustomerMobileField().value : "");
-  const cgstPercent = Number(document.getElementById("cgstPercent").value) || 0;
-  const sgstPercent = Number(document.getElementById("sgstPercent").value) || 0;
   const items = helpers.getItemsFromTable().filter((item) => item.description);
   const checkedRadio = document.querySelector('input[name="documentType"]:checked');
   const documentType = checkedRadio ? checkedRadio.value : "bill";
@@ -547,21 +600,21 @@ function getCurrentFormData(helpers) {
   const numField = getInvoiceNumberField();
   const billNumber = (numField && numField.value.trim()) || (documentType === "quotation" ? "QTN-0001" : "INV-0001");
 
-  const totals = calculateQuotationTotals(items, cgstPercent, sgstPercent);
+  const totals = calculateQuotationTotals(items);
 
   return {
     customerName,
     customerAddress,
     customerMobile,
-    cgstPercent,
-    sgstPercent,
     items,
     documentType,
     billDate,
     billNumber,
     subtotal: totals.subtotal,
-    cgst: totals.cgst,
-    sgst: totals.sgst,
+    igst: totals.igst,
+    cgst: 0,
+    sgst: 0,
+    roundOff: totals.roundOff,
     grandTotal: totals.grandTotal,
     amountInWords: totals.amountInWords,
     createdAt: billDate
@@ -623,12 +676,11 @@ function hideActionLoading() {
   if (overlay) overlay.hidden = true;
 }
 
-async function saveBill(form, helpers, messageEl, submitBtn) {
+async function saveBill(form, helpers, messageEl, submitBtn, options = {}) {
+  const shouldDownload = options && options.download === true;
   const customerName = (getCustomerNameField() ? getCustomerNameField().value : "").trim();
   const customerAddress = (getCustomerAddressField() ? getCustomerAddressField().value : "").trim();
   const customerMobile = Validators.normalizeMobile(getCustomerMobileField() ? getCustomerMobileField().value : "");
-  const cgstPercent = Number(form.cgstPercent.value) || 0;
-  const sgstPercent = Number(form.sgstPercent.value) || 0;
   const items = helpers.getItemsFromTable().filter((item) => item.description);
   const checkedRadio = document.querySelector('input[name="documentType"]:checked');
   const documentType = checkedRadio ? checkedRadio.value : "bill";
@@ -666,21 +718,32 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
     return;
   }
 
-  const totals = calculateQuotationTotals(items, cgstPercent, sgstPercent);
+  const totals = calculateQuotationTotals(items);
   const user = await ensureAuthenticatedUser();
   if (!user || !user.uid) {
     showMessage(messageEl, "Please log in before saving an invoice.", "error");
     hideActionLoading();
-    setLoading(submitBtn, false);
+    if (submitBtn) setLoading(submitBtn, false);
     return;
   }
 
-  setLoading(submitBtn, true, "Saving invoice...");
-  showActionLoading("Saving invoice & preparing PDF...", "Storing securely in Firestore database");
+  const urlParams = new URLSearchParams(window.location.search);
+  const editBillId = sessionStorage.getItem("editBillId") || (urlParams.get("edit") === "true" ? urlParams.get("id") : null);
+  const isEdit = Boolean(editBillId);
+  const isQuote = documentType === "quotation";
+  const actionWord = isEdit ? "Updating" : "Saving";
+  const docWord = isQuote ? "quotation" : "invoice";
+
+  if (submitBtn) {
+    setLoading(submitBtn, true, shouldDownload ? `${actionWord} & downloading...` : `${actionWord}...`);
+  }
+  showActionLoading(
+    shouldDownload ? `${actionWord} ${docWord} & preparing PDF...` : `${actionWord} ${docWord} in database...`,
+    "Storing securely in Firestore database"
+  );
   showMessage(messageEl, "", "error");
 
   try {
-    const isEdit = Boolean(sessionStorage.getItem("editBillId"));
     let billNumber = "";
 
     if (isEdit) {
@@ -701,17 +764,16 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
       customerAddress: customerAddress || "",
       customerMobile: customerMobile || "",
       items,
-      cgstPercent,
-      sgstPercent,
       subtotal: totals.subtotal,
-      cgst: totals.cgst,
-      sgst: totals.sgst,
+      igst: totals.igst,
+      cgst: 0,
+      sgst: 0,
+      roundOff: totals.roundOff,
       grandTotal: totals.grandTotal,
       amountInWords: totals.amountInWords,
       billDate
     };
 
-    const editBillId = sessionStorage.getItem("editBillId");
     let targetBillId = editBillId;
 
     const now = new Date();
@@ -742,21 +804,25 @@ async function saveBill(form, helpers, messageEl, submitBtn) {
       let cachedList = [];
       const cachedRaw = sessionStorage.getItem(cacheKey);
       if (cachedRaw) {
-        try { cachedList = JSON.parse(cachedRaw); } catch (e) {}
+        try { cachedList = JSON.parse(cachedRaw); } catch (e) { }
       }
       cachedList = cachedList.filter((b) => b.id !== targetBillId);
       cachedList.unshift(savedDoc);
       sessionStorage.setItem(cacheKey, JSON.stringify(cachedList));
       dashboardBillsCache = cachedList;
-    } catch (e) {}
+    } catch (e) { }
 
-    // Redirect to view-bill with download=true so user sees the preview AND gets automatic PDF download!
-    window.location.href = `view-bill.html?id=${encodeURIComponent(targetBillId)}&download=true`;
+    // Redirect to view-bill with download=true if requested, or view-only if save without download
+    if (shouldDownload) {
+      window.location.href = `view-bill.html?id=${encodeURIComponent(targetBillId)}&download=true`;
+    } else {
+      window.location.href = `view-bill.html?id=${encodeURIComponent(targetBillId)}`;
+    }
   } catch (error) {
     console.error("[SAVE] Error saving bill:", error);
     showMessage(messageEl, error.message || "Failed to save invoice.", "error");
     hideActionLoading();
-    setLoading(submitBtn, false);
+    if (submitBtn) setLoading(submitBtn, false);
   }
 }
 
@@ -790,8 +856,13 @@ function renderBillCardElement(bill) {
   viewLink.textContent = "View";
   viewLink.addEventListener("click", () => {
     try {
-      sessionStorage.setItem("view_bill_" + bill.id, JSON.stringify(bill));
-    } catch (e) {}
+      const serializableBill = {
+        ...bill,
+        billDate: bill.billDate ? (parseDateSafely(bill.billDate)?.toISOString() || bill.billDate) : null,
+        createdAt: bill.createdAt ? (parseDateSafely(bill.createdAt)?.toISOString() || bill.createdAt) : null
+      };
+      sessionStorage.setItem("view_bill_" + bill.id, JSON.stringify(serializableBill));
+    } catch (e) { }
     window.location.href = `view-bill.html?id=${encodeURIComponent(bill.id)}`;
   });
 
@@ -801,8 +872,13 @@ function renderBillCardElement(bill) {
   pdfBtn.textContent = "PDF";
   pdfBtn.addEventListener("click", () => {
     try {
-      sessionStorage.setItem("view_bill_" + bill.id, JSON.stringify(bill));
-    } catch (e) {}
+      const serializableBill = {
+        ...bill,
+        billDate: bill.billDate ? (parseDateSafely(bill.billDate)?.toISOString() || bill.billDate) : null,
+        createdAt: bill.createdAt ? (parseDateSafely(bill.createdAt)?.toISOString() || bill.createdAt) : null
+      };
+      sessionStorage.setItem("view_bill_" + bill.id, JSON.stringify(serializableBill));
+    } catch (e) { }
     window.location.href = `view-bill.html?id=${encodeURIComponent(bill.id)}&download=true`;
   });
 
@@ -873,6 +949,22 @@ async function loadBillsDashboard({
     if (statsQuotationsEl) statsQuotationsEl.textContent = countQuotations.toLocaleString("en-IN");
     if (statsRevenueEl) statsRevenueEl.textContent = formatCurrency(totalRevenue);
 
+    const avgRevenue = countInvoices > 0 ? (totalRevenue / countInvoices) : 0;
+    const avgEl = document.getElementById("statAvgRevenue");
+    if (avgEl) avgEl.textContent = formatCurrency(avgRevenue);
+
+    const totalDocs = countInvoices + countQuotations;
+    const invPct = totalDocs > 0 ? Math.round((countInvoices / totalDocs) * 100) : 71;
+    const qtnPct = 100 - invPct;
+    const donutEl = document.getElementById("donutInvoicePct");
+    if (donutEl) donutEl.textContent = invPct + "%";
+    const legInv = document.getElementById("legendInvPct");
+    if (legInv) legInv.textContent = invPct + "%";
+    const legQtn = document.getElementById("legendQtnPct");
+    if (legQtn) legQtn.textContent = qtnPct + "%";
+    const thisYearEl = document.getElementById("analyticsThisYear");
+    if (thisYearEl) thisYearEl.textContent = formatCurrency(totalRevenue);
+
     applyFiltersAndRender();
   }
 
@@ -884,7 +976,7 @@ async function loadBillsDashboard({
       dashboardBillsCache = JSON.parse(cachedStr);
       updateStatsAndRender();
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 2. Fetch fresh snapshot from Firestore (fast local cache via IndexedDB)
   try {
@@ -921,7 +1013,7 @@ async function loadBillsDashboard({
     dashboardBillsCache = freshBills;
     try {
       sessionStorage.setItem(cacheKey, JSON.stringify(freshBills));
-    } catch (e) {}
+    } catch (e) { }
 
     updateStatsAndRender();
   } catch (err) {
@@ -1064,11 +1156,11 @@ async function loadBillById(billId, uid) {
           if (doc.exists) {
             sessionStorage.setItem("view_bill_" + billId, JSON.stringify({ id: doc.id, ...doc.data() }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
         return cached;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     const doc = await db.collection("bills").doc(billId).get();
@@ -1082,7 +1174,7 @@ async function loadBillById(billId, uid) {
     const billObj = { id: doc.id, ...data };
     try {
       sessionStorage.setItem("view_bill_" + billId, JSON.stringify(billObj));
-    } catch (e) {}
+    } catch (e) { }
     return billObj;
   } catch (error) {
     if (error.code === "permission-denied") {
@@ -1116,10 +1208,10 @@ async function loadSellerProfile(uid, forceRefresh = false) {
             _cachedProfile = doc.data();
             sessionStorage.setItem("seller_profile_" + uid, JSON.stringify(_cachedProfile));
           }
-        }).catch(() => {});
+        }).catch(() => { });
         return _cachedProfile;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // 3. Fetch from Firestore
@@ -1130,7 +1222,7 @@ async function loadSellerProfile(uid, forceRefresh = false) {
     _cachedProfileUid = uid;
     try {
       sessionStorage.setItem("seller_profile_" + uid, JSON.stringify(data));
-    } catch (e) {}
+    } catch (e) { }
     return data;
   } catch (error) {
     console.error("[PROFILE] Error loading seller profile:", error);
@@ -1143,7 +1235,7 @@ function invalidateSellerProfileCache(uid) {
   _cachedProfileUid = null;
   try {
     if (uid) sessionStorage.removeItem("seller_profile_" + uid);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 async function downloadQuotationPdf(billNumber) {
@@ -1316,7 +1408,7 @@ async function deleteBill(billId) {
     try {
       sessionStorage.removeItem("dashboard_bills_" + user.uid);
       dashboardBillsCache = [];
-    } catch (e) {}
+    } catch (e) { }
     location.reload();
   } catch (error) {
     console.error("[DELETE] Error:", error);
@@ -1331,14 +1423,16 @@ async function editBill(billId, billData) {
     return;
   }
 
-  if (billData.userId !== user.uid) {
+  if (billData && billData.userId && billData.userId !== user.uid) {
     alert("You do not have permission to edit this bill.");
     return;
   }
 
   sessionStorage.setItem("editBillId", billId);
-  sessionStorage.setItem("editBillData", JSON.stringify(billData));
-  window.location.href = "create-bill.html?edit=true";
+  if (billData) {
+    sessionStorage.setItem("editBillData", JSON.stringify(billData));
+  }
+  window.location.href = `create-bill.html?edit=true&id=${encodeURIComponent(billId)}`;
 }
 
 async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
@@ -1420,10 +1514,12 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
       };
     });
 
-    const totals = calculateQuotationTotals(fixedBillItems, cgstPct, sgstPct);
+    const totals = calculateQuotationTotals(fixedBillItems);
     fixedSubtotal = totals.subtotal;
-    fixedCgst = totals.cgst;
-    fixedSgst = totals.sgst;
+    fixedCgst = 0;
+    fixedSgst = 0;
+    fixedIgst = totals.igst;
+    fixedRoundOff = totals.roundOff;
     fixedGrandTotal = totals.grandTotal;
     fixedWords = totals.amountInWords;
   }
@@ -1438,8 +1534,8 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
 
       let items = [];
       let subtotal = 0;
-      let cgst = 0;
-      let sgst = 0;
+      let igst = 0;
+      let roundOff = 0;
       let grandTotal = 0;
       let amountInWords = "";
 
@@ -1447,8 +1543,8 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
         // Apply identical items & amounts configured by user
         items = fixedBillItems.map((it) => ({ ...it }));
         subtotal = fixedSubtotal;
-        cgst = fixedCgst;
-        sgst = fixedSgst;
+        igst = fixedIgst;
+        roundOff = fixedRoundOff;
         grandTotal = fixedGrandTotal;
         amountInWords = fixedWords;
       } else {
@@ -1461,17 +1557,20 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
           const amount = qty * baseRate;
           items.push({
             description: catItem.description,
+            hsn: catItem.hsn || "",
+            gstRate: catItem.gstRate || 5,
             qty: qty,
-            per: catItem.per || "pcs",
+            per: catItem.per || "Pcs",
             rate: baseRate,
             amount: amount
           });
         }
-        subtotal = items.reduce((sum, it) => sum + it.amount, 0);
-        cgst = Math.round(subtotal * (cgstPct / 100) * 100) / 100;
-        sgst = Math.round(subtotal * (sgstPct / 100) * 100) / 100;
-        grandTotal = Math.round((subtotal + cgst + sgst) * 100) / 100;
-        amountInWords = numberToWordsIndian(grandTotal);
+        const rowTotals = calculateQuotationTotals(items);
+        subtotal = rowTotals.subtotal;
+        igst = rowTotals.igst;
+        roundOff = rowTotals.roundOff;
+        grandTotal = rowTotals.grandTotal;
+        amountInWords = rowTotals.amountInWords;
       }
 
       const billDocRef = db.collection("bills").doc();
@@ -1486,12 +1585,12 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
         createdAt: new Date(),
         items: items,
         subtotal: subtotal,
-        cgst: cgst,
-        sgst: sgst,
+        igst: igst,
+        cgst: 0,
+        sgst: 0,
+        roundOff: roundOff,
         grandTotal: grandTotal,
-        amountInWords: amountInWords,
-        cgstPercent: cgstPct,
-        sgstPercent: sgstPct
+        amountInWords: amountInWords
       };
 
       batch.set(billDocRef, billData);
@@ -1510,7 +1609,7 @@ async function bulkGenerateInvoices(options = {}, legacyProgress = null) {
   try {
     sessionStorage.removeItem("dashboard_bills_" + user.uid);
     dashboardBillsCache = [];
-  } catch (e) {}
+  } catch (e) { }
 
   return {
     success: true,

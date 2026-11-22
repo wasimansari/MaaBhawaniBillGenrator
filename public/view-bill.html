@@ -14,12 +14,14 @@
       <div class="nav-actions">
         <button class="btn btn-primary" id="downloadPdfBtn" type="button">Download PDF</button>
         <button class="btn btn-secondary" id="printBtn" type="button">Print</button>
+        <button class="btn btn-secondary" id="editBillBtn" type="button">Edit</button>
         <a class="btn btn-secondary" href="create-bill.html">+ New Invoice</a>
       </div>
     </nav>
   </div>
 
   <div class="quotation-wrap">
+    <div class="no-print view-bill-hint"><span>⇄ Swipe sideways to view full invoice</span></div>
     <div id="billContainer"></div>
     <div id="loadingState" class="empty-state">
       <div class="spinner-large"></div>
@@ -50,6 +52,7 @@
 
     const printBtn = document.getElementById("printBtn");
     const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+    const editBillBtn = document.getElementById("editBillBtn");
     const loadingState = document.getElementById("loadingState");
     const notFound = document.getElementById("notFound");
     const notFoundMessage = document.getElementById("notFoundMessage");
@@ -57,6 +60,15 @@
     function setActionsEnabled(enabled) {
       printBtn.disabled = !enabled;
       downloadPdfBtn.disabled = !enabled;
+      if (editBillBtn) editBillBtn.disabled = !enabled;
+    }
+
+    if (editBillBtn) {
+      editBillBtn.addEventListener("click", () => {
+        if (billId) {
+          window.location.href = `create-bill.html?edit=true&id=${encodeURIComponent(billId)}`;
+        }
+      });
     }
 
     setActionsEnabled(false);

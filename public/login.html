@@ -1,43 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — BillGen</title>
-  <script>
-    if (localStorage.getItem("billgen_auth_user")) {
-      window.location.replace("dashboard.html");
-    }
-  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
   <div class="auth-layout">
     <div class="card">
       <div class="brand">
-        <div class="brand-icon">BG</div>
-        <div>
+        <div class="brand-icon-1">
+          <!-- <span>❖</span> -->
+          <span>
+            <image src="../public/images/Brand_logo.png" style="width:65px">
+          </span>
+        </div>
+        <div class="brand-title">
           <h1>Welcome back</h1>
           <p class="muted">Login with your credentials</p>
         </div>
       </div>
-      <form id="loginForm">
+
+      <div id="statusNotice" class="message message-warning" hidden style="margin-bottom: 1.25rem;"></div>
+
+      <form id="loginForm" style="margin-top: 15px;">
         <div class="form-group">
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" required autocomplete="email">
+          <label for="email">Email address</label>
+          <input id="email" name="email" type="email" required autocomplete="email" placeholder="name@example.com">
         </div>
         <div class="form-group">
           <label for="password">Password</label>
-          <input id="password" name="password" type="password" required autocomplete="current-password">
+          <input id="password" name="password" type="password" required autocomplete="current-password"
+            placeholder="••••••••">
         </div>
         <div id="message" class="message" hidden></div>
         <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Login</button>
       </form>
-      <p class="form-footer">New user? <a href="register.html">Create account</a></p>
+
+      <div class="auth-notice"
+        style="margin-top: 1.25rem; padding: 0.75rem; background: var(--surface-2); border-radius: 8px; font-size: 0.85rem; color: var(--muted); border-left: 3px solid var(--accent);">
+        <strong>ℹ️ Approval required:</strong> New user accounts must be approved by the admin before login is
+        permitted.
+      </div>
+
+      <p class="form-footer" style="margin-top: 1rem;">New user? <a href="register.html">Create account</a></p>
     </div>
   </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/validators.js"></script>
   <script src="js/auth.js"></script>
@@ -45,9 +60,40 @@
     const form = document.getElementById("loginForm");
     const messageEl = document.getElementById("message");
     const submitBtn = document.getElementById("submitBtn");
+    const statusNotice = document.getElementById("statusNotice");
 
-    auth.onAuthStateChanged((user) => {
-      if (user) window.location.href = "dashboard.html";
+    // Display messages if redirected with query params
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    if (status === "pending") {
+      statusNotice.textContent = "⏳ Your account is pending admin approval. You will be able to log in once either admin (akram0031@gmail.com / yadavwanshigroupofcompany@gmail.com) approves it.";
+      statusNotice.className = "message message-warning";
+      statusNotice.hidden = false;
+    } else if (status === "rejected") {
+      statusNotice.textContent = "❌ Your account registration was rejected by the admin.";
+      statusNotice.className = "message message-error";
+      statusNotice.hidden = false;
+    }
+
+    // Verify session when page loads
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) return;
+      if (isAdminEmail(user.email)) {
+        window.location.href = "dashboard.html";
+        return;
+      }
+      try {
+        const snap = await db.collection("users").doc(user.uid).get();
+        if (snap.exists && snap.data().status === "approved") {
+          window.location.href = "dashboard.html";
+        } else {
+          await auth.signOut();
+          setCachedAuthUser(null);
+        }
+      } catch (err) {
+        await auth.signOut();
+        setCachedAuthUser(null);
+      }
     });
 
     form.addEventListener("submit", (e) => {
@@ -56,4 +102,5 @@
     });
   </script>
 </body>
+
 </html>

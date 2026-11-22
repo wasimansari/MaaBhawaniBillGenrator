@@ -6,6 +6,23 @@ function formatCurrency(amount) {
   });
 }
 
+function formatNumberOnly(amount) {
+  const value = Number(amount) || 0;
+  return value.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatRoundOff(val) {
+  const num = Number(val) || 0;
+  if (Math.abs(num) < 0.0001) return "0.00";
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function formatQty(qty) {
   return Number(qty).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -13,9 +30,68 @@ function formatQty(qty) {
   });
 }
 
+function parseDateSafely(value) {
+  if (!value) return null;
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+
+  // Firestore Timestamp instance with toDate()
+  if (typeof value.toDate === "function") {
+    try {
+      const d = value.toDate();
+      if (d instanceof Date && !isNaN(d.getTime())) return d;
+    } catch (e) {}
+  }
+
+  // Serialized Firestore Timestamp: { seconds: ..., nanoseconds: ... } or { _seconds: ... }
+  if (typeof value === "object") {
+    if (typeof value.seconds === "number" && !isNaN(value.seconds)) {
+      return new Date(value.seconds * 1000);
+    }
+    if (typeof value._seconds === "number" && !isNaN(value._seconds)) {
+      return new Date(value._seconds * 1000);
+    }
+  }
+
+  // Numeric timestamp in milliseconds or seconds
+  if (typeof value === "number" && !isNaN(value)) {
+    return value > 1e11 ? new Date(value) : new Date(value * 1000);
+  }
+
+  // String date format
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
+    const isoMatch = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+    if (isoMatch) {
+      const y = parseInt(isoMatch[1], 10);
+      const m = parseInt(isoMatch[2], 10) - 1;
+      const d = parseInt(isoMatch[3], 10);
+      const res = new Date(y, m, d);
+      if (!isNaN(res.getTime())) return res;
+    }
+
+    // DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dmyMatch) {
+      const d = parseInt(dmyMatch[1], 10);
+      const m = parseInt(dmyMatch[2], 10) - 1;
+      const y = parseInt(dmyMatch[3], 10);
+      const res = new Date(y, m, d);
+      if (!isNaN(res.getTime())) return res;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  return null;
+}
+
 function formatDate(value) {
-  if (!value) return "-";
-  const date = value.toDate ? value.toDate() : new Date(value);
+  const date = parseDateSafely(value);
+  if (!date) return "-";
   return date.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -24,9 +100,7 @@ function formatDate(value) {
 }
 
 function formatDateInvoice(value) {
-  const date = value
-    ? (value.toDate ? value.toDate() : new Date(value))
-    : new Date();
+  const date = parseDateSafely(value) || new Date();
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
@@ -34,9 +108,13 @@ function formatDateInvoice(value) {
 }
 
 function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text == null ? "" : String(text);
-  return div.innerHTML;
+  if (text == null) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 const ONES = [
@@ -87,17 +165,51 @@ function calculateLineTotal(qty, rate) {
   return (Number(qty) || 0) * (Number(rate) || 0);
 }
 
-function calculateQuotationTotals(items, cgstPercent, sgstPercent) {
-  const subtotal = items.reduce((sum, item) => sum + calculateLineTotal(item.qty, item.rate), 0);
-  const cgst = subtotal * (Number(cgstPercent) || 0) / 100;
-  const sgst = subtotal * (Number(sgstPercent) || 0) / 100;
-  const grandTotal = subtotal + cgst + sgst;
+function toTitleCaseWords(str) {
+  return String(str).toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatAmountInWordsINR(amount) {
+  const words = numberToWordsIndian(amount);
+  const cleaned = words.replace(/ RUPEES ONLY$/i, "").replace(/ ONLY$/i, "");
+  return "INR " + toTitleCaseWords(cleaned) + " Only";
+}
+
+function calculateQuotationTotals(items, igstOverride = null, legacySgst = null) {
+  let subtotal = 0;
+  let totalIgst = 0;
+
+  (items || []).forEach((item) => {
+    const lineTotal = calculateLineTotal(item.qty, item.rate);
+    subtotal += lineTotal;
+    const rate = Number(item.gstRate != null && item.gstRate !== "" ? item.gstRate : (item.gst != null ? item.gst : 0));
+    const lineTax = lineTotal * (rate / 100);
+    totalIgst += lineTax;
+  });
+
+  // If no item-level tax was specified, check if overall override was provided (or legacy cgst+sgst)
+  if (totalIgst === 0) {
+    const overrideVal = (Number(igstOverride) || 0) + (Number(legacySgst) || 0);
+    if (overrideVal > 0) {
+      totalIgst = subtotal * (overrideVal / 100);
+    }
+  }
+
+  totalIgst = Math.round(totalIgst * 100) / 100;
+  subtotal = Math.round(subtotal * 100) / 100;
+
+  const rawTotal = subtotal + totalIgst;
+  const grandTotal = Math.round(rawTotal);
+  const roundOff = Number((grandTotal - rawTotal).toFixed(2));
+
   return {
     subtotal,
-    cgst,
-    sgst,
+    igst: totalIgst,
+    cgst: 0,
+    sgst: 0,
+    roundOff,
     grandTotal,
-    amountInWords: numberToWordsIndian(grandTotal)
+    amountInWords: formatAmountInWordsINR(grandTotal)
   };
 }
 

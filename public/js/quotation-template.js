@@ -6,45 +6,46 @@ function renderQuotationHTML(bill, profile) {
     customerAddress: bill.customerAddress || "",
     customerMobile: bill.customerMobile || "",
     subtotal: Number(bill.subtotal) || 0,
-    cgst: Number(bill.cgst) || 0,
-    sgst: Number(bill.sgst) || 0,
+    igst: bill.igst != null ? Number(bill.igst) : (Number(bill.cgst || 0) + Number(bill.sgst || 0)),
+    roundOff: bill.roundOff != null ? Number(bill.roundOff) : 0,
     grandTotal: Number(bill.grandTotal) || 0,
     amountInWords: bill.amountInWords || "",
-    cgstPercent: Number(bill.cgstPercent) || 9,
-    sgstPercent: Number(bill.sgstPercent) || 9,
-    createdAt: bill.createdAt || new Date(),
+    billDate: bill.billDate || bill.createdAt || bill.date || new Date(),
+    createdAt: bill.createdAt || bill.billDate || new Date(),
     documentType: bill.documentType || 'bill'
   };
+
+  // If roundOff is not explicitly stored, derive it automatically
+  if (!safeBill.roundOff && safeBill.grandTotal) {
+    const raw = safeBill.subtotal + safeBill.igst;
+    safeBill.roundOff = Number((safeBill.grandTotal - raw).toFixed(2));
+  }
 
   const business = getBusinessFromProfile(profile);
   const logoUrl = (typeof LOGO_DATA_URL !== "undefined" && LOGO_DATA_URL)
     ? LOGO_DATA_URL
     : (typeof getLogoUrl === "function" ? getLogoUrl() : "images/logo.png");
 
-  const invoiceDate = formatDateInvoice(safeBill.createdAt);
-  const cgstPct = safeBill.cgstPercent;
-  const sgstPct = safeBill.sgstPercent;
-  
-  // Determine if this is a quotation
-  // Check both documentType and if billNumber seems auto-generated (quotations have random numbers)
+  const invoiceDate = formatDateInvoice(bill.billDate || bill.createdAt || bill.date || safeBill.billDate);
   let isQuotation = safeBill.documentType === 'quotation';
-  
-  // Debug logging
-  console.log("[QUOTATION] Bill object keys:", Object.keys(bill));
-  console.log("[QUOTATION] Bill.documentType from DB:", bill.documentType);
-  console.log("[QUOTATION] SafeBill.documentType:", safeBill.documentType);
-  console.log("[QUOTATION] isQuotation result:", isQuotation);
 
   const itemRows = safeBill.items.map((item, index) => {
     const amount = calculateLineTotal(item.qty, item.rate);
+    const gstRateVal = item.gstRate != null && item.gstRate !== "" ? item.gstRate : (item.gst != null ? item.gst : 5);
+    const hsnVal = item.hsn || "";
+    const perVal = item.per || "Pcs";
+    const qtyVal = formatQty(item.qty);
+
     return [
       "<tr>",
       `<td class="col-sl">${index + 1}</td>`,
       `<td class="col-desc">${escapeHtml(item.description)}</td>`,
-      `<td class="col-qty">${formatQty(item.qty)}</td>`,
-      `<td class="col-rate">${formatCurrency(item.rate)}</td>`,
-      `<td class="col-per">${escapeHtml(item.per || "pcs")}</td>`,
-      `<td class="col-amt">${formatCurrency(amount)}</td>`,
+      `<td class="col-hsn">${escapeHtml(hsnVal)}</td>`,
+      `<td class="col-gst">${gstRateVal} %</td>`,
+      `<td class="col-qty">${qtyVal} ${escapeHtml(perVal)}</td>`,
+      `<td class="col-rate">${formatNumberOnly(item.rate)}</td>`,
+      `<td class="col-per">${escapeHtml(perVal)}</td>`,
+      `<td class="col-amt">${formatNumberOnly(amount)}</td>`,
       "</tr>"
     ].join("");
   }).join("");
@@ -73,41 +74,43 @@ function renderQuotationHTML(bill, profile) {
   html += '</div>';
   html += '</div>';
 
-  // Show BILL TO section only for bills, not for quotations
+  // BILL TO section
   if (!isQuotation) {
     html += '<div class="q-billto">';
     html += '<div class="q-billto-title">BILL TO</div>';
     html += '<div class="q-billto-row">';
-    html += `<span><strong>Name:-</strong> ${escapeHtml(bill.customerName || "")}</span>`;
+    html += `<span><strong>Name:-</strong> ${escapeHtml(safeBill.customerName || "")}</span>`;
     html += `<span><strong>Date:-</strong> ${invoiceDate}</span>`;
     html += '</div>';
     html += '<div class="q-billto-row">';
-    html += `<span><strong>Address:-</strong> ${escapeHtml(bill.customerAddress || "")}</span>`;
-    html += `<span><strong>Invoice No-</strong> ${escapeHtml(bill.billNumber)}</span>`;
+    html += `<span><strong>Address:-</strong> ${escapeHtml(safeBill.customerAddress || "")}</span>`;
+    html += `<span><strong>Invoice No-</strong> ${escapeHtml(safeBill.billNumber)}</span>`;
     html += '</div>';
-    if (bill.customerMobile) {
-      html += `<div class="q-billto-row q-billto-mobile"><span><strong>Mobile:-</strong> ${escapeHtml(bill.customerMobile)}</span></div>`;
+    if (safeBill.customerMobile) {
+      html += `<div class="q-billto-row q-billto-mobile"><span><strong>Mobile:-</strong> ${escapeHtml(safeBill.customerMobile)}</span></div>`;
     }
     html += '</div>';
   } else {
-    // Show QUOTATION heading and details for quotations
     html += '<div class="q-billto">';
     html += '<div class="q-billto-title">QUOTATION DETAILS</div>';
     html += '<div class="q-billto-row">';
-    html += `<span><strong>Quotation No:-</strong> ${escapeHtml(bill.billNumber)}</span>`;
+    html += `<span><strong>Quotation No:-</strong> ${escapeHtml(safeBill.billNumber)}</span>`;
     html += `<span><strong>Date:-</strong> ${invoiceDate}</span>`;
     html += '</div>';
-    if (bill.customerName) {
-      html += `<div class="q-billto-row"><span><strong>Client / Customer:-</strong> ${escapeHtml(bill.customerName)}</span></div>`;
+    if (safeBill.customerName) {
+      html += `<div class="q-billto-row"><span><strong>Client / Customer:-</strong> ${escapeHtml(safeBill.customerName)}</span></div>`;
     }
     html += '</div>';
   }
 
   html += `<div class="q-invoice-title">${isQuotation ? 'Quotation Items' : 'Tax Invoice'}</div>`;
 
+  // Main items table with HSN/SAC, GST Rate, Quantity, Rate, per, Amount
   html += '<table class="q-table"><thead><tr>';
-  html += '<th class="col-sl">SI No.</th>';
-  html += '<th class="col-desc">Description</th>';
+  html += '<th class="col-sl">SI<br>No.</th>';
+  html += '<th class="col-desc">Description of Goods</th>';
+  html += '<th class="col-hsn">HSN/SAC</th>';
+  html += '<th class="col-gst">GST<br>Rate</th>';
   html += '<th class="col-qty">Quantity</th>';
   html += '<th class="col-rate">Rate</th>';
   html += '<th class="col-per">per</th>';
@@ -115,32 +118,60 @@ function renderQuotationHTML(bill, profile) {
   html += '</tr></thead><tbody>';
   html += itemRows;
   html += '</tbody><tfoot>';
-  html += '<tr class="totals-row"><td colspan="4" rowspan="4" class="amount-words-cell">';
-  html += '<strong>Amount Chargeable (in words)</strong><br>';
-  html += escapeHtml(bill.amountInWords || numberToWordsIndian(bill.grandTotal));
-  html += '</td><td class="label-cell">Total Amount</td>';
-  html += `<td class="amt-cell">${formatCurrency(bill.subtotal)}</td></tr>`;
-  html += `<tr class="totals-row"><td class="label-cell">CGST(${cgstPct}%)</td>`;
-  html += `<td class="amt-cell">${formatCurrency(bill.cgst)}</td></tr>`;
-  html += `<tr class="totals-row"><td class="label-cell">SGST(${sgstPct}%)</td>`;
-  html += `<td class="amt-cell">${formatCurrency(bill.sgst)}</td></tr>`;
-  html += '<tr class="totals-row grand-row"><td class="label-cell"><strong>Grand Total</strong></td>';
-  html += `<td class="amt-cell"><strong>${formatCurrency(bill.grandTotal)}</strong></td></tr>`;
+
+  // Subtotal, IGST, Round Off, Total
+  html += '<tr class="totals-row">';
+  html += '<td colspan="7" class="label-cell"></td>';
+  html += `<td class="amt-cell">${formatNumberOnly(safeBill.subtotal)}</td>`;
+  html += '</tr>';
+
+  html += '<tr class="totals-row">';
+  html += '<td colspan="7" class="label-cell" style="font-style: italic;">IGST</td>';
+  html += `<td class="amt-cell">${formatNumberOnly(safeBill.igst)}</td>`;
+  html += '</tr>';
+
+  html += '<tr class="totals-row">';
+  html += '<td colspan="7" class="label-cell" style="font-style: italic;">Round Off</td>';
+  html += `<td class="amt-cell">${formatRoundOff(safeBill.roundOff)}</td>`;
+  html += '</tr>';
+
+  html += '<tr class="totals-row grand-row">';
+  html += '<td colspan="7" class="label-cell"><strong>Total</strong></td>';
+  html += `<td class="amt-cell"><strong>₹ ${formatNumberOnly(safeBill.grandTotal)}</strong></td>`;
+  html += '</tr>';
+
   html += '</tfoot></table>';
 
-  html += '<div class="q-footer-grid">';
-  html += '<div class="q-bank"><strong>BANK DETAILS:</strong>';
-  html += `<p>${escapeHtml(business.bankName)}</p>`;
-  html += `<p>A/C No- ${escapeHtml(business.accountNo)}, IFSC Code- ${escapeHtml(business.ifsc)}</p>`;
+  // Amount Chargeable in words block
+  const wordsFormatted = safeBill.amountInWords || formatAmountInWordsINR(safeBill.grandTotal);
+  html += '<div class="q-chargeable-box">';
+  html += '<div class="q-words-block">';
+  html += '<strong>Amount Chargeable (in words)</strong>';
+  html += `<p class="q-words-text">${escapeHtml(wordsFormatted)}</p>`;
   html += '</div>';
+  html += '<div class="q-eoe">E. &amp; O.E</div>';
+  html += '</div>';
+
+  // Bank details & Declaration (Declaration on left, Bank details + Signature on right to match image)
+  const holderName = business.accountHolder || business.accountName || business.name;
+  html += '<div class="q-footer-grid">';
   html += '<div class="q-declaration"><strong>Declaration</strong>';
   html += `<p>We declare that this ${isQuotation ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</p>`;
+  html += '</div>';
+
+  html += '<div class="q-bank"><strong>Company\'s Bank Details</strong>';
+  html += `<p>A/c Holder's Name: <strong>${escapeHtml(holderName)}</strong></p>`;
+  html += `<p>Bank Name &nbsp;: <strong>${escapeHtml(business.bankName || "State Bank of India")}</strong></p>`;
+  html += `<p>A/c No. &nbsp;&nbsp;&nbsp;&nbsp;: <strong>${escapeHtml(business.accountNo || "")}</strong></p>`;
+  html += `<p>Branch &amp; IFS Code: <strong>${escapeHtml(business.ifsc || "")}</strong></p>`;
   html += '<div class="q-signature">';
-  html += `<p class="q-sig-company">For ${escapeHtml(business.name)}</p>`;
+  html += `<p class="q-sig-company">for <strong>${escapeHtml(business.name)}</strong></p>`;
   html += '<div class="q-sig-wrap"></div>';
-  html += '<p class="q-sig-title">Authorized Signature</p>';
+  html += '<p class="q-sig-title">Authorised Signatory</p>';
   html += '</div></div></div>';
 
+  const jurisdiction = business.stateName || "DELHI";
+  html += `<p class="q-jurisdiction">SUBJECT TO ${escapeHtml(jurisdiction.toUpperCase())} JURISDICTION</p>`;
   html += '<p class="q-generated">This is a Computer Generated Invoice</p>';
   html += '</div>';
 

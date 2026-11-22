@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +8,13 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/quotation.css">
 </head>
+
 <body>
   <div class="container no-print">
     <nav class="nav-bar">
       <h2>Create Tax Invoice</h2>
-      <div style="display: flex; gap: 0.5rem;">
-        <a class="btn btn-secondary" href="settings.html">⚙️ Settings (Price List)</a>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="settings.html">⚙️ Settings</a>
         <a class="btn btn-secondary" href="dashboard.html">← Dashboard</a>
       </div>
     </nav>
@@ -40,11 +42,11 @@
           <div class="form-row">
             <div class="form-group">
               <label for="customerName">Customer Name *</label>
-              <input id="customerName" name="customerName" type="text" placeholder="e.g. NPS Hakim Miya Tola">
+              <input id="customerName" name="customerName" type="text" placeholder="School/College/Company Name">
             </div>
             <div class="form-group">
               <label for="customerMobile">Customer Mobile (optional)</label>
-              <input id="customerMobile" name="customerMobile" type="tel" maxlength="10" placeholder="10-digit mobile">
+              <input id="customerMobile" name="customerMobile" type="tel" maxlength="10" placeholder="Mobile Number">
             </div>
           </div>
           <div class="form-row">
@@ -60,7 +62,8 @@
           <div class="form-row">
             <div class="form-group" style="grid-column: 1 / -1;">
               <label for="customerAddress">Customer Address (optional)</label>
-              <input id="customerAddress" name="customerAddress" type="text" placeholder="e.g. Motipur, Muzaffarpur, Bihar">
+              <input id="customerAddress" name="customerAddress" type="text"
+                placeholder="Ex. Motipur, Muzaffarpur, Bihar">
             </div>
           </div>
         </div>
@@ -87,57 +90,59 @@
         </div>
 
         <!-- ITEMS Section -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 0.5rem 0; flex-wrap: wrap; gap: 0.5rem;">
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 0.5rem 0; flex-wrap: wrap; gap: 0.5rem;">
           <label style="font-weight: 600; font-size: 1rem; color: var(--text); margin: 0;">ITEMS</label>
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <button type="button" class="btn btn-secondary btn-sm" id="openAddItemModalBtn">+ Add New Item to Dropdown</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="openAddItemModalBtn">+ Add New Item to
+              Dropdown</button>
             <button type="button" class="btn btn-secondary btn-sm" id="addItemRow">+ Add Row</button>
           </div>
         </div>
 
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th style="min-width: 220px;">Item (Select from Dropdown)</th>
-              <th style="width: 85px;">Qty</th>
-              <th style="width: 130px;">Rate (₹)</th>
-              <th style="width: 75px;">Per</th>
-              <th style="width: 110px;">Amount</th>
-              <th style="width: 40px;"></th>
-            </tr>
-          </thead>
-          <tbody id="itemsBody">
-            <!-- Dynamically populated -->
-          </tbody>
-        </table>
-
-        <!-- Tax settings -->
-        <div class="form-row" style="margin-top: 1rem;">
-          <div class="form-group">
-            <label for="cgstPercent">CGST (%)</label>
-            <input id="cgstPercent" name="cgstPercent" type="number" min="0" step="0.01" value="9">
-          </div>
-          <div class="form-group">
-            <label for="sgstPercent">SGST (%)</label>
-            <input id="sgstPercent" name="sgstPercent" type="number" min="0" step="0.01" value="9">
-          </div>
+        <div class="table-scroll-hint"><span>⇄ Scroll table sideways to view and edit all item fields</span></div>
+        <div class="table-responsive">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="min-width: 200px;">Description of Goods</th>
+                <th style="width: 100px;">HSN/SAC</th>
+                <th style="width: 85px;">GST Rate (%)</th>
+                <th style="width: 80px;">Quantity</th>
+                <th style="width: 110px;">Rate (₹)</th>
+                <th style="width: 70px;">per</th>
+                <th style="width: 115px;">Amount</th>
+                <th style="width: 35px;"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
 
-        <!-- Totals summary -->
-        <div class="totals-box">
+        <!-- Totals summary with IGST and Automatic Round Off -->
+        <div class="totals-box" style="margin-top: 1.25rem;">
           <p><span>Total Amount</span><span id="subtotalDisplay">₹ 0.00</span></p>
-          <p><span>CGST</span><span id="cgstDisplay">₹ 0.00</span></p>
-          <p><span>SGST</span><span id="sgstDisplay">₹ 0.00</span></p>
-          <p class="total-line"><span>Grand Total</span><span id="grandTotalDisplay">₹ 0.00</span></p>
-          <p class="muted" style="margin-top:0.5rem;font-size:0.8rem;" id="amountWordsPreview"></p>
+          <p><span>IGST</span><span id="igstDisplay">₹ 0.00</span></p>
+          <p><span>Round Off</span><span id="roundOffDisplay">0.00</span></p>
+          <p class="total-line"><span>Total</span><span id="grandTotalDisplay">₹ 0.00</span></p>
+          <p class="muted" style="margin-top:0.5rem;font-size:0.85rem;font-weight:600;color:#93c5fd;"
+            id="amountWordsPreview"></p>
         </div>
 
         <div id="message" class="message" hidden></div>
 
-        <!-- Action buttons -->
-        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap;">
-          <button type="button" class="btn btn-secondary" id="previewBtn">👁 Preview Invoice</button>
-          <button type="submit" class="btn btn-primary" id="submitBtn">Save & Download Invoice</button>
+        <!-- Action buttons: Separate Save, Download, and Preview -->
+        <div class="bill-form-actions">
+          <button type="button" class="btn btn-secondary" id="previewBtn">👁 Preview</button>
+          <button type="button" class="btn btn-secondary" id="saveOnlyBtn"
+            style="border-color: rgba(56, 189, 248, 0.4); color: #7dd3fc;">
+            💾 Save Invoice
+          </button>
+          <button type="button" class="btn btn-primary" id="downloadBtn">
+            ⬇️ Download Invoice
+          </button>
         </div>
       </form>
     </div>
@@ -211,7 +216,8 @@
   <script>
     const form = document.getElementById("billForm");
     const messageEl = document.getElementById("message");
-    const submitBtn = document.getElementById("submitBtn");
+    const saveOnlyBtn = document.getElementById("saveOnlyBtn");
+    const downloadBtn = document.getElementById("downloadBtn") || document.getElementById("submitBtn");
     const previewBtn = document.getElementById("previewBtn");
     let formHelpers = null;
 
@@ -254,7 +260,7 @@
 
     previewSavePdfBtn.addEventListener("click", () => {
       previewModal.hidden = true;
-      saveBill(form, formHelpers, messageEl, submitBtn);
+      saveBill(form, formHelpers, messageEl, downloadBtn, { download: true });
     });
 
     // Add new item submission
@@ -294,86 +300,175 @@
       }
     });
 
-    // Preview button
+    // 1. Initialize Bill Form
+    formHelpers = bindBillForm();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEditPage = urlParams.get("edit") === "true";
+    const initialItemsBody = document.getElementById("itemsBody");
+
+    if (!isEditPage) {
+      formHelpers.addRow();
+    } else if (initialItemsBody) {
+      initialItemsBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 1.25rem; color: #94a3b8; font-style: italic;">Loading saved invoice items...</td></tr>`;
+    }
+
+    // 2. Wire form submit & separate button handlers
+    // Click "Save Invoice" (or "Update Invoice"): Saves to DB without downloading
+    if (saveOnlyBtn) {
+      saveOnlyBtn.addEventListener("click", () => {
+        saveBill(form, formHelpers, messageEl, saveOnlyBtn, { download: false });
+      });
+    }
+
+    // Click "Download Invoice" (or "Update & Download Invoice"): Saves to DB AND downloads PDF
+    if (downloadBtn) {
+      downloadBtn.addEventListener("click", () => {
+        saveBill(form, formHelpers, messageEl, downloadBtn, { download: true });
+      });
+    }
+
+    // Form submit default
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveBill(form, formHelpers, messageEl, downloadBtn, { download: true });
+    });
+
+    // 3. Preview button
     previewBtn.addEventListener("click", async () => {
       await showInvoicePreview(formHelpers);
     });
 
-    // Require authentication and initialize
+    // 4. Require authentication and load user data in background
     requireAuth().then(async (user) => {
-      // Load user's catalog items from Firestore
-      await loadCatalogItems(user.uid);
+      if (!user) return;
 
-      formHelpers = bindBillForm();
+      // Load user's catalog items from Firestore
+      try {
+        await loadCatalogItems(user.uid);
+        updateAllItemDropdowns();
+      } catch (err) {
+        console.warn("[CATALOG] Could not load custom catalog:", err);
+      }
 
       // Check if editing existing bill
-      const params = new URLSearchParams(window.location.search);
-      const isEdit = params.get("edit") === "true";
-      const editBillData = sessionStorage.getItem("editBillData");
+      const isEdit = urlParams.get("edit") === "true";
+      const targetBillId = urlParams.get("id") || sessionStorage.getItem("editBillId");
+      let bill = null;
 
-      if (isEdit && editBillData) {
+      if (isEdit) {
+        const editBillData = sessionStorage.getItem("editBillData");
+        if (editBillData) {
+          try {
+            bill = JSON.parse(editBillData);
+          } catch (e) {
+            console.error("[EDIT] Error parsing editBillData:", e);
+          }
+        }
+
+        // If bill data was not in sessionStorage or had missing items, fetch fresh directly from Firestore
+        let itemsList = (bill && (bill.items || bill.billItems || bill.lineItems || bill.customItems)) || null;
+        if (!itemsList || itemsList.length === 0) {
+          if (targetBillId) {
+            try {
+              const freshBill = await loadBillById(targetBillId, user.uid);
+              if (freshBill && !freshBill.error) {
+                bill = freshBill;
+                sessionStorage.setItem("editBillData", JSON.stringify(freshBill));
+                sessionStorage.setItem("editBillId", targetBillId);
+              }
+            } catch (err) {
+              console.warn("[EDIT] Error loading fresh bill from Firestore:", err);
+            }
+          }
+        }
+      }
+
+      if (isEdit && bill) {
         try {
-          const bill = JSON.parse(editBillData);
+          if (targetBillId) {
+            sessionStorage.setItem("editBillId", targetBillId);
+          }
 
           if (bill.documentType) {
             const radio = document.querySelector(`input[name="documentType"][value="${bill.documentType}"]`);
             if (radio) {
               radio.checked = true;
-              initDocumentTypeToggle();
             }
           }
+          initDocumentTypeToggle();
 
           if (getCustomerNameField()) getCustomerNameField().value = bill.customerName || "";
           if (getCustomerAddressField()) getCustomerAddressField().value = bill.customerAddress || "";
           if (getCustomerMobileField()) getCustomerMobileField().value = bill.customerMobile || "";
-          if (document.getElementById("cgstPercent")) document.getElementById("cgstPercent").value = bill.cgstPercent != null ? bill.cgstPercent : 9;
-          if (document.getElementById("sgstPercent")) document.getElementById("sgstPercent").value = bill.sgstPercent != null ? bill.sgstPercent : 9;
 
           if (bill.billDate && getDateField()) {
-            const billDate = bill.billDate.toDate ? bill.billDate.toDate() : new Date(bill.billDate);
-            getDateField().value = billDate.toISOString().split('T')[0];
+            let dateStr = "";
+            if (typeof bill.billDate === "string") {
+              dateStr = bill.billDate.split("T")[0];
+            } else if (bill.billDate.toDate) {
+              dateStr = bill.billDate.toDate().toISOString().split("T")[0];
+            } else if (bill.billDate.seconds) {
+              dateStr = new Date(bill.billDate.seconds * 1000).toISOString().split("T")[0];
+            } else {
+              const d = new Date(bill.billDate);
+              if (!isNaN(d.getTime())) dateStr = d.toISOString().split("T")[0];
+            }
+            if (dateStr) getDateField().value = dateStr;
           }
 
           if (bill.billNumber && getInvoiceNumberField()) {
             getInvoiceNumberField().value = bill.billNumber;
           }
 
-          // Populate items in edit mode
+          // Clear items table and populate with saved items
           const itemsBody = document.getElementById("itemsBody");
           itemsBody.innerHTML = "";
 
-          if (Array.isArray(bill.items) && bill.items.length > 0) {
-            bill.items.forEach((item) => {
+          let items = bill.items || bill.billItems || bill.lineItems || bill.customItems || [];
+          if (items && typeof items === "object" && !Array.isArray(items)) {
+            items = Object.values(items);
+          }
+
+          if (Array.isArray(items) && items.length > 0) {
+            items.forEach((item) => {
               formHelpers.addRow(item);
             });
           } else {
             formHelpers.addRow();
           }
 
-          submitBtn.textContent = bill.documentType === 'quotation' ? "Update & Download Quotation" : "Update & Download Invoice";
-          document.querySelector("h2").textContent = bill.documentType === 'quotation' ? "Update Quotation" : "Update Tax Invoice";
-        } catch (err) {
-          console.error("[EDIT] Error parsing editBillData:", err);
-          formHelpers.addRow();
-        }
-      } else {
-        // Parallel fetch of next serial numbers for instant form readiness
-        const [nextBillSerial, nextQtnSerial] = await Promise.all([
-          getNextSerialNumber(user.uid, "bill"),
-          getNextSerialNumber(user.uid, "quotation")
-        ]);
-        const invField = document.getElementById("invoiceNumber");
-        if (invField && !invField.value) invField.value = nextBillSerial;
-        const qtnField = document.getElementById("quotationNumber");
-        if (qtnField && !qtnField.value) qtnField.value = nextQtnSerial;
-        formHelpers.addRow();
-      }
+          formHelpers.refreshTotals();
 
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        saveBill(form, formHelpers, messageEl, submitBtn);
-      });
+          const isQuote = bill.documentType === 'quotation';
+          if (saveOnlyBtn) {
+            saveOnlyBtn.innerHTML = isQuote ? "💾 Update Quotation" : "💾 Update Invoice";
+          }
+          if (downloadBtn) {
+            downloadBtn.innerHTML = isQuote ? "⬇️ Update & Download Quotation" : "⬇️ Update & Download Invoice";
+          }
+          const pageTitle = document.querySelector("h2");
+          if (pageTitle) pageTitle.textContent = isQuote ? "Update Quotation" : "Update Tax Invoice";
+        } catch (err) {
+          console.error("[EDIT] Error populating edit bill data:", err);
+        }
+      } else if (!isEdit) {
+        // Parallel fetch of next serial numbers
+        try {
+          const [nextBillSerial, nextQtnSerial] = await Promise.all([
+            getNextSerialNumber(user.uid, "bill"),
+            getNextSerialNumber(user.uid, "quotation")
+          ]);
+          const invField = document.getElementById("invoiceNumber");
+          if (invField && !invField.value) invField.value = nextBillSerial;
+          const qtnField = document.getElementById("quotationNumber");
+          if (qtnField && !qtnField.value) qtnField.value = nextQtnSerial;
+        } catch (err) {
+          console.warn("[SERIAL] Could not fetch serial numbers:", err);
+        }
+      }
     });
   </script>
 </body>
+
 </html>
