@@ -27,6 +27,14 @@
       {
         "source": "/login",
         "destination": "/login.html"
+      },
+      {
+        "source": "/users",
+        "destination": "/users.html"
+      },
+      {
+        "source": "/user-approvals",
+        "destination": "/users.html"
       }
     ]
   },
