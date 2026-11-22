@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "practice-b23d7",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
