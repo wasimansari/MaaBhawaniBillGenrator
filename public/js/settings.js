@@ -27,14 +27,14 @@ async function ensureAuthenticatedUser() {
 }
 
 const DEFAULT_ADDITIONAL_ITEMS = [
-  { description: "MONITOR(24 INCH)", per: "pcs", rate: 9500 },
-  { description: "KEYBOARD", per: "pcs", rate: 550 },
-  { description: "WIRELESS MOUSE", per: "pcs", rate: 450 },
-  { description: "UPS 600VA", per: "pcs", rate: 2850 },
-  { description: "UPS 1 KVA", per: "pcs", rate: 4850 },
-  { description: "CCTV CAMERA 4 MP", per: "pcs", rate: 1850 },
-  { description: "CCTV CAMERA 2 MP", per: "pcs", rate: 1250 },
-  { description: "SMPS 5 AMP", per: "pcs", rate: 450 }
+  { description: "MONITOR(24 INCH)", hsn: "84716060", gstRate: 18, per: "pcs", rate: 9500 },
+  { description: "KEYBOARD", hsn: "84716060", gstRate: 18, per: "pcs", rate: 550 },
+  { description: "WIRELESS MOUSE", hsn: "84716060", gstRate: 18, per: "pcs", rate: 450 },
+  { description: "UPS 600VA", hsn: "85044090", gstRate: 18, per: "pcs", rate: 2850 },
+  { description: "UPS 1 KVA", hsn: "85044090", gstRate: 18, per: "pcs", rate: 4850 },
+  { description: "CCTV CAMERA 4 MP", hsn: "85258900", gstRate: 18, per: "pcs", rate: 1850 },
+  { description: "CCTV CAMERA 2 MP", hsn: "85258900", gstRate: 18, per: "pcs", rate: 1250 },
+  { description: "SMPS 5 AMP", hsn: "85044090", gstRate: 18, per: "pcs", rate: 450 }
 ];
 
 function updateCatalogCount() {
@@ -48,13 +48,17 @@ function createCatalogRow(item = {}) {
   const row = document.createElement("tr");
   row.className = "catalog-row";
   const descVal = escapeHtml(item.description || "");
+  const hsnVal = escapeHtml(item.hsn || "");
+  const gstRateVal = item.gstRate != null ? item.gstRate : (item.gst != null ? item.gst : 18);
   const perVal = escapeHtml(item.per || "pcs");
   const rateVal = item.rate != null ? item.rate : 0;
 
   row.innerHTML = `
     <td><input type="text" class="cat-desc" placeholder="Item name / description" value="${descVal}" required style="width: 100%;"></td>
+    <td><input type="text" class="cat-hsn" placeholder="HSN/SAC" value="${hsnVal}" style="width: 100px;"></td>
+    <td><input type="number" class="cat-gst" placeholder="18" min="0" max="100" step="0.01" value="${gstRateVal}" style="width: 90px;"></td>
     <td><input type="text" class="cat-per" placeholder="pcs" value="${perVal}" style="width: 80px;"></td>
-    <td><input type="number" class="cat-rate" min="0" step="0.01" value="${rateVal}" placeholder="0.00" style="width: 120px;"></td>
+    <td><input type="number" class="cat-rate" min="0" step="0.01" value="${rateVal}" placeholder="0.00" style="width: 110px;"></td>
     <td style="white-space: nowrap; text-align: right;">
       <button type="button" class="btn btn-sm btn-secondary update-catalog-btn" title="Update and save this item">Update</button>
       <button type="button" class="btn-icon remove-catalog" title="Delete item" style="margin-left: 6px;">✕</button>
@@ -62,6 +66,8 @@ function createCatalogRow(item = {}) {
   `;
 
   const descInput = row.querySelector(".cat-desc");
+  const hsnInput = row.querySelector(".cat-hsn");
+  const gstInput = row.querySelector(".cat-gst");
   const perInput = row.querySelector(".cat-per");
   const rateInput = row.querySelector(".cat-rate");
   const updateBtn = row.querySelector(".update-catalog-btn");
@@ -70,6 +76,8 @@ function createCatalogRow(item = {}) {
   // Single Item Update Button Handler
   updateBtn.addEventListener("click", async () => {
     const newDesc = descInput.value.trim();
+    const newHsn = hsnInput.value.trim();
+    const newGst = Number(gstInput.value) || 0;
     const newPer = perInput.value.trim() || "pcs";
     const newRate = Number(rateInput.value) || 0;
 
@@ -88,6 +96,16 @@ function createCatalogRow(item = {}) {
       await db.collection("users").doc(user.uid).set({
         additionalItems: allItems
       }, { merge: true });
+
+      // Update session cache so dashboard and bills reflect changes immediately
+      try {
+        const cachedStr = sessionStorage.getItem("seller_profile_" + user.uid);
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          cached.additionalItems = allItems;
+          sessionStorage.setItem("seller_profile_" + user.uid, JSON.stringify(cached));
+        }
+      } catch (e) {}
 
       updateBtn.classList.remove("btn-secondary");
       updateBtn.classList.add("btn-primary");
@@ -123,6 +141,15 @@ function createCatalogRow(item = {}) {
         await db.collection("users").doc(user.uid).set({
           additionalItems: remainingItems
         }, { merge: true });
+
+        try {
+          const cachedStr = sessionStorage.getItem("seller_profile_" + user.uid);
+          if (cachedStr) {
+            const cached = JSON.parse(cachedStr);
+            cached.additionalItems = remainingItems;
+            sessionStorage.setItem("seller_profile_" + user.uid, JSON.stringify(cached));
+          }
+        } catch (e) {}
       }
     } catch (err) {
       console.error("Failed to delete item from Firestore:", err);
@@ -134,9 +161,11 @@ function createCatalogRow(item = {}) {
 
 function getCatalogFromTable() {
   return Array.from(document.querySelectorAll(".catalog-row")).map((row) => ({
-    description: row.querySelector(".cat-desc").value.trim(),
+    description: (row.querySelector(".cat-desc") ? row.querySelector(".cat-desc").value : "").trim(),
+    hsn: (row.querySelector(".cat-hsn") ? row.querySelector(".cat-hsn").value.trim() : ""),
+    gstRate: Number(row.querySelector(".cat-gst") ? row.querySelector(".cat-gst").value : 18) || 0,
     per: (row.querySelector(".cat-per") ? row.querySelector(".cat-per").value.trim() : "") || "pcs",
-    rate: Number(row.querySelector(".cat-rate").value) || 0
+    rate: Number(row.querySelector(".cat-rate") ? row.querySelector(".cat-rate").value : 0) || 0
   })).filter((item) => item.description);
 }
 
@@ -176,8 +205,9 @@ function populateSettingsUI(data = {}) {
     searchInput.addEventListener("input", () => {
       const term = searchInput.value.toLowerCase().trim();
       document.querySelectorAll(".catalog-row").forEach((row) => {
-        const desc = (row.querySelector(".cat-desc").value || "").toLowerCase();
-        row.style.display = desc.includes(term) ? "" : "none";
+        const desc = (row.querySelector(".cat-desc") ? row.querySelector(".cat-desc").value : "").toLowerCase();
+        const hsn = (row.querySelector(".cat-hsn") ? row.querySelector(".cat-hsn").value : "").toLowerCase();
+        row.style.display = (desc.includes(term) || hsn.includes(term)) ? "" : "none";
       });
     });
   }

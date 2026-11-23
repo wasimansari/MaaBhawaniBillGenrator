@@ -80,7 +80,7 @@
               <span id="catalogCountBadge" class="badge" style="font-size: 0.8rem; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 12px;">0 items</span>
             </h3>
             <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;">
-              Set item names, default units (per), and prices here. When creating bills, selecting an item automatically fills its price and unit.
+              Set item names, HSN/SAC, GST rate (%), default units (per), and prices here. When creating bills, selecting an item automatically fills its HSN/SAC, GST rate, price, and unit.
             </p>
           </div>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -89,14 +89,16 @@
           </div>
         </div>
 
-        <div style="overflow-x: auto;">
+        <div class="table-responsive">
           <table class="items-table" style="width: 100%;">
             <thead>
               <tr>
-                <th style="min-width: 240px;">Item Description / Name</th>
+                <th style="min-width: 220px;">Item Description / Name</th>
+                <th style="width: 110px;">HSN/SAC</th>
+                <th style="width: 100px;">GST Rate (%)</th>
                 <th style="width: 90px;">Unit (Per)</th>
-                <th style="width: 130px;">Price / Rate (₹)</th>
-                <th style="width: 150px; text-align: right;">Actions</th>
+                <th style="width: 120px;">Price / Rate (₹)</th>
+                <th style="width: 140px; text-align: right;">Actions</th>
               </tr>
             </thead>
             <tbody id="catalogBody"></tbody>

@@ -257,9 +257,11 @@ async function loadCatalogItems(userId) {
     }
 
     catalogItems = items.map((it) => {
-      if (typeof it === "string") return { description: it, per: "pcs", rate: 0 };
+      if (typeof it === "string") return { description: it, hsn: "", gstRate: 18, per: "pcs", rate: 0 };
       return {
         description: it.description || "",
+        hsn: it.hsn || "",
+        gstRate: it.gstRate != null ? Number(it.gstRate) : (it.gst != null ? Number(it.gst) : 18),
         per: it.per || "pcs",
         rate: Number(it.rate) || 0
       };
@@ -331,7 +333,7 @@ function updateAllItemDropdowns() {
   });
 }
 
-async function addNewCatalogItem(itemName, unit = "pcs", rate = 0) {
+async function addNewCatalogItem(itemName, unit = "pcs", rate = 0, hsn = "", gstRate = 18) {
   const trimmed = String(itemName || "").trim();
   if (!trimmed) {
     throw new Error("Item name cannot be empty.");
@@ -339,6 +341,8 @@ async function addNewCatalogItem(itemName, unit = "pcs", rate = 0) {
 
   const numRate = Number(rate) || 0;
   const strUnit = String(unit || "pcs").trim() || "pcs";
+  const strHsn = String(hsn || "").trim();
+  const numGst = Number(gstRate) || 0;
 
   // Check if item already exists (case-insensitive)
   const existing = catalogItems.find(
@@ -348,11 +352,13 @@ async function addNewCatalogItem(itemName, unit = "pcs", rate = 0) {
   let resultItem = existing;
 
   if (!existing) {
-    resultItem = { description: trimmed, per: strUnit, rate: numRate };
+    resultItem = { description: trimmed, hsn: strHsn, gstRate: numGst, per: strUnit, rate: numRate };
     catalogItems.push(resultItem);
   } else {
     existing.per = strUnit;
     if (numRate > 0) existing.rate = numRate;
+    if (strHsn) existing.hsn = strHsn;
+    if (numGst > 0) existing.gstRate = numGst;
     resultItem = existing;
   }
 
@@ -361,6 +367,15 @@ async function addNewCatalogItem(itemName, unit = "pcs", rate = 0) {
     await db.collection("users").doc(user.uid).set({
       additionalItems: catalogItems
     }, { merge: true });
+
+    try {
+      const cachedStr = sessionStorage.getItem("seller_profile_" + user.uid);
+      if (cachedStr) {
+        const cached = JSON.parse(cachedStr);
+        cached.additionalItems = catalogItems;
+        sessionStorage.setItem("seller_profile_" + user.uid, JSON.stringify(cached));
+      }
+    } catch (e) {}
   }
 
   updateAllItemDropdowns();

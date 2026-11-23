@@ -364,6 +364,16 @@
             <label for="newItemDescription">Item Name / Description *</label>
             <input type="text" id="newItemDescription" placeholder="e.g. PRINTER HP 1020, WIRELESS KEYBOARD" required>
           </div>
+          <div class="form-row" style="margin-bottom: 0.75rem;">
+            <div class="form-group">
+              <label for="newItemHsn">HSN/SAC</label>
+              <input type="text" id="newItemHsn" placeholder="e.g. 8443">
+            </div>
+            <div class="form-group">
+              <label for="newItemGstRate">GST Rate (%)</label>
+              <input type="number" id="newItemGstRate" placeholder="18" value="18" min="0" max="100" step="0.01">
+            </div>
+          </div>
           <div class="form-row" style="margin-bottom: 0;">
             <div class="form-group">
               <label for="newItemDefaultPer">Default Unit</label>
@@ -441,6 +451,10 @@
     addNewItemForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const itemName = newItemDescInput.value.trim();
+      const hsnInputEl = document.getElementById("newItemHsn");
+      const gstInputEl = document.getElementById("newItemGstRate");
+      const itemHsn = (hsnInputEl ? hsnInputEl.value : "").trim();
+      const itemGst = Number(gstInputEl ? gstInputEl.value : 18) || 0;
       const itemPer = newItemPerInput.value.trim() || "pcs";
       const rateInputEl = document.getElementById("newItemDefaultRate");
       const itemRate = Number(rateInputEl ? rateInputEl.value : 0) || 0;
@@ -450,7 +464,7 @@
       setLoading(saveBtn, true);
 
       try {
-        const added = await addNewCatalogItem(itemName, itemPer, itemRate);
+        const added = await addNewCatalogItem(itemName, itemPer, itemRate, itemHsn, itemGst);
 
         if (pendingRowForNewItem) {
           const select = pendingRowForNewItem.querySelector(".item-desc");
@@ -460,6 +474,10 @@
             if (perInput && added.per) perInput.value = added.per;
             const rateInput = pendingRowForNewItem.querySelector(".item-rate");
             if (rateInput && added.rate) rateInput.value = added.rate;
+            const hsnInput = pendingRowForNewItem.querySelector(".item-hsn");
+            if (hsnInput && added.hsn) hsnInput.value = added.hsn;
+            const gstInput = pendingRowForNewItem.querySelector(".item-gst");
+            if (gstInput && added.gstRate != null) gstInput.value = added.gstRate;
             refreshBulkRowAmount(pendingRowForNewItem);
           }
         }
