@@ -396,19 +396,20 @@
 
 @page {
   size: A4 portrait;
-  margin: 0;
+  margin: 8mm 10mm 10mm 10mm;
 }
 
 @media print {
 
   html,
   body {
-    width: 210mm;
-    margin: 0;
-    padding: 0;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .no-print {
@@ -416,24 +417,83 @@
   }
 
   .quotation-wrap {
-    padding: 0;
-    background: #fff;
-    margin: 0;
+    padding: 0 !important;
+    background: #fff !important;
+    margin: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
   }
 
   .quotation-document {
-    border: 1px solid #333;
-    box-shadow: none;
-    width: 210mm;
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
     min-width: 0 !important;
-    max-width: 210mm;
-    min-height: 280mm;
-    margin: 0 auto;
-    padding: 8mm 10mm;
-    box-sizing: border-box;
-    page-break-after: avoid;
-    page-break-inside: avoid;
-    position: relative;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    page-break-after: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    position: relative !important;
+  }
+
+  .q-watermark {
+    opacity: 0.05 !important;
+  }
+
+  .q-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .q-table thead {
+    display: table-header-group !important;
+  }
+
+  .q-table tbody {
+    display: table-row-group !important;
+  }
+
+  .q-table tfoot {
+    display: table-row-group !important;
+  }
+
+  .q-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .q-table th {
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .totals-row,
+  .grand-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .q-chargeable-box {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .q-footer-grid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .q-header,
+  .q-billto,
+  .q-invoice-title {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .modal-overlay {
@@ -446,11 +506,11 @@
   .modal-box,
   .modal-box-large {
     max-width: 100% !important;
-    width: 210mm !important;
+    width: 100% !important;
     box-shadow: none !important;
     border: none !important;
     background: transparent !important;
     padding: 0 !important;
-    margin: 0 auto !important;
+    margin: 0 !important;
   }
 }

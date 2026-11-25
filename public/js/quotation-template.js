@@ -117,9 +117,9 @@ function renderQuotationHTML(bill, profile) {
   html += '<th class="col-amt">Amount</th>';
   html += '</tr></thead><tbody>';
   html += itemRows;
-  html += '</tbody><tfoot>';
 
   // Subtotal, IGST, Round Off, Total
+  // Placed inside tbody so that on multi-page print it appears ONCE after the last item, never repeating on earlier pages!
   html += '<tr class="totals-row">';
   html += '<td colspan="7" class="label-cell"></td>';
   html += `<td class="amt-cell">${formatNumberOnly(safeBill.subtotal)}</td>`;
@@ -140,7 +140,7 @@ function renderQuotationHTML(bill, profile) {
   html += `<td class="amt-cell"><strong>₹ ${formatNumberOnly(safeBill.grandTotal)}</strong></td>`;
   html += '</tr>';
 
-  html += '</tfoot></table>';
+  html += '</tbody></table>';
 
   // Amount Chargeable in words block
   const wordsFormatted = safeBill.amountInWords || formatAmountInWordsINR(safeBill.grandTotal);
