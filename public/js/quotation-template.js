@@ -56,8 +56,14 @@ function renderQuotationHTML(bill, profile) {
 
   let html = '<div class="quotation-document" id="quotationDocument">';
 
-  // Watermark logo centered in background of invoice & PDF
-  html += '<div class="q-watermark" aria-hidden="true">';
+  // Watermarks for multi-page support (Page 1, Page 2, Page 3)
+  html += '<div class="q-watermark q-watermark-p1" aria-hidden="true">';
+  html += `<img src="${logoUrl}" alt="" class="q-watermark-img" width="300" height="300" loading="eager" onerror="this.style.display='none'">`;
+  html += '</div>';
+  html += '<div class="q-watermark q-watermark-p2" aria-hidden="true">';
+  html += `<img src="${logoUrl}" alt="" class="q-watermark-img" width="300" height="300" loading="eager" onerror="this.style.display='none'">`;
+  html += '</div>';
+  html += '<div class="q-watermark q-watermark-p3" aria-hidden="true">';
   html += `<img src="${logoUrl}" alt="" class="q-watermark-img" width="300" height="300" loading="eager" onerror="this.style.display='none'">`;
   html += '</div>';
 
