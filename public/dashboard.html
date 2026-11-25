@@ -276,13 +276,10 @@
 
         <!-- Items Table -->
         <div style="margin-bottom: 1.25rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
-            <div>
-              <strong style="font-size: 1rem;">Select Items & Amounts (Applied to All Bills)</strong>
-              <p class="muted" style="font-size: 0.85rem; margin: 0.15rem 0 0;">Select items from dropdown, adjust
-                quantity, and fill rate manually:</p>
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="bulkAddItemRowBtn">+ Add Item Row</button>
+          <div style="margin-bottom: 0.65rem;">
+            <strong style="font-size: 1rem;">Select Items & Amounts (Applied to All Bills)</strong>
+            <p class="muted" style="font-size: 0.85rem; margin: 0.15rem 0 0;">Select items from dropdown, adjust
+              quantity, and fill rate manually:</p>
           </div>
 
           <div style="overflow-x: auto;">
@@ -301,6 +298,10 @@
                 <!-- Dynamic Item Rows -->
               </tbody>
             </table>
+          </div>
+
+          <div style="display: flex; gap: 0.65rem; align-items: center; margin-top: 0.65rem;">
+            <button type="button" class="btn btn-secondary btn-sm" id="bulkAddItemRowBtn">+ Add Item Row</button>
           </div>
         </div>
 
