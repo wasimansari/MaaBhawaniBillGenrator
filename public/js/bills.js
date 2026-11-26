@@ -1337,30 +1337,161 @@ async function downloadQuotationPdf(billNumber) {
         }
       }
 
-      // If the invoice fits within standard 1 page (or slight overflow up to ~330mm due to padding/margins),
+      // If the invoice fits within standard 1 page (or slight overflow up to ~325mm due to padding/margins),
       // scale it to fit precisely onto 1 standard A4 page so it NEVER spills onto an unwanted page 2.
       if (renderedHeight <= a4Height) {
         // Fits perfectly on single A4 page
         pdf.addImage(imgData, "PNG", 0, 0, a4Width, renderedHeight);
-      } else if (renderedHeight <= 330) {
+      } else if (renderedHeight <= 325) {
         // Fits within single page with slight proportional scale-down (preserves A4 single-page format)
         const scaleFactor = a4Height / renderedHeight;
         const scaledWidth = a4Width * scaleFactor;
         const offsetX = (a4Width - scaledWidth) / 2;
         pdf.addImage(imgData, "PNG", offsetX, 0, scaledWidth, a4Height);
       } else {
-        // Truly long invoice (15+ items) requiring multiple pages
-        let heightLeft = renderedHeight;
-        let position = 0;
+        // Multi-page invoice: Calculate intelligent, element-aware page breaks
+        // so that no table row or totals block is EVER sliced in half between pages!
+        const docRect = element.getBoundingClientRect();
+        const mmPerPx = a4Width / element.offsetWidth;
+        const totalDocHeightMm = docRect.height * mmPerPx;
 
-        pdf.addImage(imgData, "PNG", 0, position, a4Width, renderedHeight);
-        heightLeft -= a4Height;
+        function getElementMmBounds(el) {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: (r.top - docRect.top) * mmPerPx,
+            bottom: (r.bottom - docRect.top) * mmPerPx,
+            height: r.height * mmPerPx
+          };
+        }
 
-        while (heightLeft > 15) { // ignore trailing margin artifacts (<15mm)
-          position -= a4Height;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, a4Width, renderedHeight);
-          heightLeft -= a4Height;
+        const rows = Array.from(element.querySelectorAll(".q-table tbody tr"));
+        const theadEl = element.querySelector(".q-table thead");
+        const theadBounds = getElementMmBounds(theadEl);
+        const firstTotalsRow = element.querySelector(".totals-row");
+        const chargeableBox = element.querySelector(".q-chargeable-box");
+        const footerGrid = element.querySelector(".q-footer-grid");
+
+        const totalsBounds = getElementMmBounds(firstTotalsRow);
+        const footerBounds = getElementMmBounds(footerGrid);
+
+        // Entire financial summary block (Subtotal, Taxes, Round Off, Grand Total, Words, Bank & Signature)
+        const summaryStartMm = totalsBounds ? totalsBounds.top : null;
+        const summaryEndMm = footerBounds ? footerBounds.bottom : totalDocHeightMm;
+        const summaryHeightMm = summaryStartMm != null ? (summaryEndMm - summaryStartMm) : 0;
+
+        // Effective usable height per page (leave 12mm breathing room at bottom for clean framing)
+        const pageContentHeightMm = a4Height - 12; // 285mm
+        const pageBreaksMm = [];
+        let currentTopMm = 0;
+
+        while (currentTopMm < totalDocHeightMm - 5) {
+          const maxBottomMm = currentTopMm + pageContentHeightMm;
+
+          if (maxBottomMm >= totalDocHeightMm - 5) {
+            pageBreaksMm.push(totalDocHeightMm);
+            break;
+          }
+
+          let cutMm = maxBottomMm;
+
+          // Rule 1: The Totals & Summary Block
+          // If the summary block begins before maxBottomMm but extends past it,
+          // and if the entire summary block can fit comfortably on the next page:
+          // Cut cleanly BEFORE the summary block so all totals appear together on the next page!
+          if (summaryStartMm != null && summaryStartMm > currentTopMm + 30 && summaryStartMm < maxBottomMm) {
+            if (summaryEndMm > maxBottomMm) {
+              cutMm = summaryStartMm - 0.5;
+            }
+          }
+
+          // Rule 2: Table Rows
+          // If we did not cut before the summary block, ensure no individual table row is sliced in half!
+          if (cutMm === maxBottomMm) {
+            for (const row of rows) {
+              const b = getElementMmBounds(row);
+              if (!b) continue;
+              if (b.top < maxBottomMm && b.bottom > maxBottomMm) {
+                if (b.top > currentTopMm + 30) {
+                  cutMm = b.top - 0.5;
+                }
+                break;
+              }
+            }
+
+            const cb = getElementMmBounds(chargeableBox);
+            if (cb && cb.top < maxBottomMm && cb.bottom > maxBottomMm && cb.top > currentTopMm + 30) {
+              cutMm = Math.min(cutMm, cb.top - 0.5);
+            }
+
+            const fb = getElementMmBounds(footerGrid);
+            if (fb && fb.top < maxBottomMm && fb.bottom > maxBottomMm && fb.top > currentTopMm + 30) {
+              cutMm = Math.min(cutMm, fb.top - 0.5);
+            }
+          }
+
+          // Safety fallback: ensure forward progress
+          if (cutMm <= currentTopMm + 20) {
+            cutMm = maxBottomMm;
+          }
+
+          pageBreaksMm.push(cutMm);
+          currentTopMm = cutMm;
+        }
+
+        // Render each page slice onto an exact A4 canvas
+        let sliceStartMm = 0;
+        const fullCanvasWidth = canvas.width;
+        const fullCanvasHeight = canvas.height;
+
+        for (let i = 0; i < pageBreaksMm.length; i++) {
+          const sliceEndMm = pageBreaksMm[i];
+          const sliceStartPx = Math.round((sliceStartMm / renderedHeight) * fullCanvasHeight);
+          const sliceEndPx = Math.min(fullCanvasHeight, Math.round((sliceEndMm / renderedHeight) * fullCanvasHeight));
+          const sliceHeightPx = sliceEndPx - sliceStartPx;
+
+          if (sliceHeightPx > 0) {
+            const pageCanvas = document.createElement("canvas");
+            pageCanvas.width = fullCanvasWidth;
+            pageCanvas.height = Math.round((a4Height / a4Width) * fullCanvasWidth);
+
+            const pageCtx = pageCanvas.getContext("2d");
+            pageCtx.fillStyle = "#ffffff";
+            pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+            // On page 2+, add 8mm top margin for a clean look matching page 1
+            const topMarginMm = (i === 0) ? 0 : 8;
+            let destYPx = Math.round((topMarginMm / a4Height) * pageCanvas.height);
+
+            // If page 2+ starts with an item row (table continuation), repeat thead for clarity
+            if (i > 0 && theadBounds && sliceStartMm < (summaryStartMm || totalDocHeightMm)) {
+              const theadStartPx = Math.round((theadBounds.top / renderedHeight) * fullCanvasHeight);
+              const theadHeightPx = Math.round((theadBounds.height / renderedHeight) * fullCanvasHeight);
+              if (theadHeightPx > 0) {
+                pageCtx.drawImage(
+                  canvas,
+                  0, theadStartPx, fullCanvasWidth, theadHeightPx,
+                  0, destYPx, fullCanvasWidth, theadHeightPx
+                );
+                destYPx += theadHeightPx;
+              }
+            }
+
+            pageCtx.drawImage(
+              canvas,
+              0, sliceStartPx, fullCanvasWidth, sliceHeightPx,
+              0, destYPx, fullCanvasWidth, sliceHeightPx
+            );
+
+            const pageImgData = pageCanvas.toDataURL("image/png", 1.0);
+
+            if (i > 0) {
+              pdf.addPage();
+            }
+            pdf.addImage(pageImgData, "PNG", 0, 0, a4Width, a4Height);
+          }
+
+          sliceStartMm = sliceEndMm;
         }
       }
 
