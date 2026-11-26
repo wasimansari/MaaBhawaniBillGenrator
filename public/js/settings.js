@@ -7,9 +7,9 @@ const DEFAULT_BUSINESS = {
   stateCode: "10",
   stateName: "Bihar",
   tagline: "Government Contractor & Order Supplier.",
-  bankName: "Uttar Bihar Gramin Bank, Fulwariya",
+  bankName: "Bihar Gramin Bank, Fulwariya",
   accountNo: "1080851130010536",
-  ifsc: "CBIN0R10001"
+  ifsc: "PUNB0MBGB06"
 };
 
 async function ensureAuthenticatedUser() {
@@ -25,17 +25,6 @@ async function ensureAuthenticatedUser() {
     });
   });
 }
-
-const DEFAULT_ADDITIONAL_ITEMS = [
-  { description: "MONITOR(24 INCH)", hsn: "84716060", gstRate: 18, per: "pcs", rate: 9500 },
-  { description: "KEYBOARD", hsn: "84716060", gstRate: 18, per: "pcs", rate: 550 },
-  { description: "WIRELESS MOUSE", hsn: "84716060", gstRate: 18, per: "pcs", rate: 450 },
-  { description: "UPS 600VA", hsn: "85044090", gstRate: 18, per: "pcs", rate: 2850 },
-  { description: "UPS 1 KVA", hsn: "85044090", gstRate: 18, per: "pcs", rate: 4850 },
-  { description: "CCTV CAMERA 4 MP", hsn: "85258900", gstRate: 18, per: "pcs", rate: 1850 },
-  { description: "CCTV CAMERA 2 MP", hsn: "85258900", gstRate: 18, per: "pcs", rate: 1250 },
-  { description: "SMPS 5 AMP", hsn: "85044090", gstRate: 18, per: "pcs", rate: 450 }
-];
 
 function updateCatalogCount() {
   const badge = document.getElementById("catalogCountBadge");
@@ -105,7 +94,7 @@ function createCatalogRow(item = {}) {
           cached.additionalItems = allItems;
           sessionStorage.setItem("seller_profile_" + user.uid, JSON.stringify(cached));
         }
-      } catch (e) {}
+      } catch (e) { }
 
       updateBtn.classList.remove("btn-secondary");
       updateBtn.classList.add("btn-primary");
@@ -149,7 +138,7 @@ function createCatalogRow(item = {}) {
             cached.additionalItems = remainingItems;
             sessionStorage.setItem("seller_profile_" + user.uid, JSON.stringify(cached));
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     } catch (err) {
       console.error("Failed to delete item from Firestore:", err);
@@ -189,9 +178,7 @@ function populateSettingsUI(data = {}) {
   const catalogBody = document.getElementById("catalogBody");
   if (catalogBody) {
     catalogBody.innerHTML = "";
-    const items = data.additionalItems && data.additionalItems.length
-      ? data.additionalItems
-      : DEFAULT_ADDITIONAL_ITEMS;
+    const items = (data && Array.isArray(data.additionalItems)) ? data.additionalItems : [];
     const fragment = document.createDocumentFragment();
     items.forEach((item) => fragment.appendChild(createCatalogRow(item)));
     catalogBody.appendChild(fragment);
@@ -220,7 +207,7 @@ async function loadSettingsForm(userId) {
     if (cachedStr) {
       populateSettingsUI(JSON.parse(cachedStr));
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 2. Fetch fresh profile from Firestore
   try {
@@ -228,7 +215,7 @@ async function loadSettingsForm(userId) {
     const data = doc.exists ? doc.data() : {};
     try {
       sessionStorage.setItem("seller_profile_" + userId, JSON.stringify(data));
-    } catch (e) {}
+    } catch (e) { }
     populateSettingsUI(data);
   } catch (err) {
     console.error("[SETTINGS] Error loading profile from Firestore:", err);
@@ -267,7 +254,7 @@ async function saveSettings(form, messageEl, submitBtn) {
         business: businessData,
         additionalItems: catalogData
       }));
-    } catch (e) {}
+    } catch (e) { }
 
     showMessage(messageEl, "Settings saved successfully.", "success");
   } catch (error) {

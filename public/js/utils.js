@@ -39,7 +39,7 @@ function parseDateSafely(value) {
     try {
       const d = value.toDate();
       if (d instanceof Date && !isNaN(d.getTime())) return d;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // Serialized Firestore Timestamp: { seconds: ..., nanoseconds: ... } or { _seconds: ... }
@@ -239,8 +239,23 @@ function getBusinessFromProfile(profile) {
     stateCode: business.stateCode || "10",
     stateName: business.stateName || "Bihar",
     tagline: business.tagline || "Government Contractor & Order Supplier.",
-    bankName: business.bankName || "Uttar Bihar Gramin Bank, Fulwariya",
+    bankName: (business.bankName && business.bankName !== "Uttar Bihar Gramin Bank, Fulwariya") ? business.bankName : (business.bankName || "Bihar Gramin Bank, Fulwariya"),
     accountNo: business.accountNo || "1080851130010536",
-    ifsc: business.ifsc || "CBIN0R10001"
+    ifsc: (business.ifsc && business.ifsc !== "CBIN0R10001") ? business.ifsc : "PUNB0MBGB06"
   };
+}
+
+function isLegacyDummyCatalog(items) {
+  if (!Array.isArray(items) || items.length === 0) return true;
+  const itemNames = items.map((it) => ((typeof it === "string" ? it : it.description) || "").toLowerCase().trim());
+  const hasRealItems = itemNames.some((name) =>
+    name === "plastic chair" || name === "ceiling fan" || name === "led bulb 12w" || name === "student attendance register"
+  );
+  if (hasRealItems) return false;
+
+  const hasDummyItems = itemNames.some((name) =>
+    name.includes("football") || name.includes("cricket") || name.includes("badminton") ||
+    name === "monitor(24 inch)" || name === "keyboard" || name === "wireless mouse" || name === "ups 600va"
+  );
+  return hasDummyItems;
 }
